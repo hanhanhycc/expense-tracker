@@ -79,9 +79,9 @@ for i in {1..30}; do
   sleep 1
 done
 
-log "🗄  Chạy migration..."
-$DC -f "$COMPOSE_FILE" exec -T "$SERVICE" pnpm db:migrate:deploy || {
-  err "Migration thất bại — xem log: $DC -f $COMPOSE_FILE logs $SERVICE"
+log "🗞  Đồng bộ schema (db push)..."
+$DC -f "$COMPOSE_FILE" exec -T "$SERVICE" pnpm db:push || {
+  err "db push thất bại — xem log: $DC -f $COMPOSE_FILE logs $SERVICE"
   exit 1
 }
 
