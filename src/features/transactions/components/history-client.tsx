@@ -1,0 +1,173 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { formatVND } from "@/lib/money";
+import { formatDate } from "@/lib/date";
+import { TransactionForm, type TransactionFormInitial } from "@/features/transactions/components/transaction-form";
+
+type Tx = {
+  id: string;
+  amount: string;
+  type: "INCOME" | "EXPENSE";
+  date: string;
+  note: string | null;
+  visibility: "PERSONAL" | "SHARED";
+  splitType: "NONE" | "EQUAL" | "CUSTOM";
+  paidById: string;
+  categoryId: string;
+  category: { name: string; icon: string | null; color: string | null };
+  paidBy: { id: string; user: { name: string } };
+  shares: { memberId: string; amount: string; member: { user: { name: string } } }[];
+};
+type Cat = { id: string; name: string; kind: "INCOME" | "EXPENSE" };
+type Member = { id: string; user: { name: string } };
+
+export function HistoryClient({ currentMemberId }: { currentMemberId: string }) {
+  const [items, setItems] = useState<Tx[]>([]);
+  const [cats, setCats] = useState<Cat[]>([]);
+  const [members, setMembers] = useState<Member[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState<Tx | null>(null);
+
+  const [filter, setFilter] = useState({ from: "", to: "", categoryId: "", memberId: "", visibility: "ALL", q: "" });
+
+  async function load() {
+    setLoading(true);
+    const params = new URLSearchParams();
+    Object.entries(filter).forEach(([k, v]) => { if (v) params.set(k, v); });
+    const res = await fetch("/api/transactions?" + params.toString());
+    const data = await res.json();
+    setItems(data.items || []);
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    fetch("/api/categories").then((r) => r.json()).then((d) => setCats(d.items || []));
+    fetch("/api/members").then((r) => r.json()).then((d) => setMembers(d.items || []));
+  }, []);
+
+  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [filter]);
+
+  async function onDelete(id: string) {
+    if (!confirm("Xoá giao dịch này?")) return;
+    await fetch(`/api/transactions/${id}`, { method: "DELETE" });
+    load();
+  }
+
+  function exportUrl() {
+    const params = new URLSearchParams();
+    Object.entries(filter).forEach(([k, v]) => { if (v) params.set(k, v); });
+    return "/api/export/transactions?" + params.toString();
+  }
+
+  if (editing) {
+    const initial: TransactionFormInitial = {
+      id: editing.id,
+      type: editing.type,
+      amount: editing.amount,
+      categoryId: editing.categoryId,
+      note: editing.note ?? "",
+      date: editing.date.slice(0, 10),
+      paidById: editing.paidById,
+      visibility: editing.visibility,
+      splitType: editing.splitType,
+      sharedMemberIds: editing.shares.map((s) => s.memberId),
+      customShares: editing.shares.map((s) => ({ memberId: s.memberId, amount: Number(s.amount) })),
+    };
+    return (
+      <div className="max-w-md mx-auto">
+        <button onClick={() => setEditing(null)} className="text-sm text-primary mb-3">← Quay lại</button>
+        <h1 className="text-xl font-bold mb-4">Sửa giao dịch</h1>
+        <TransactionForm initial={initial} currentMemberId={currentMemberId} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-bold">Lịch sử giao dịch</h1>
+        <a href={exportUrl()} className="btn-ghost text-sm">📤 Export CSV</a>
+      </div>
+
+      <div className="card grid grid-cols-2 md:grid-cols-3 gap-3">
+        <div>
+          <label className="label">Từ ngày</label>
+          <input type="date" className="input" value={filter.from} onChange={(e) => setFilter({ ...filter, from: e.target.value })} />
+        </div>
+        <div>
+          <label className="label">Đến ngày</label>
+          <input type="date" className="input" value={filter.to} onChange={(e) => setFilter({ ...filter, to: e.target.value })} />
+        </div>
+        <div>
+          <label className="label">Danh mục</label>
+          <select className="input" value={filter.categoryId} onChange={(e) => setFilter({ ...filter, categoryId: e.target.value })}>
+            <option value="">Tất cả</option>
+            {cats.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="label">Thành viên</label>
+          <select className="input" value={filter.memberId} onChange={(e) => setFilter({ ...filter, memberId: e.target.value })}>
+            <option value="">Tất cả</option>
+            {members.map((m) => <option key={m.id} value={m.id}>{m.user.name}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="label">Loại</label>
+          <select className="input" value={filter.visibility} onChange={(e) => setFilter({ ...filter, visibility: e.target.value })}>
+            <option value="ALL">Tất cả</option>
+            <option value="PERSONAL">Cá nhân</option>
+            <option value="SHARED">Chung</option>
+          </select>
+        </div>
+        <div>
+          <label className="label">Tìm ghi chú</label>
+          <input className="input" value={filter.q} onChange={(e) => setFilter({ ...filter, q: e.target.value })} placeholder="..." />
+        </div>
+      </div>
+
+      <div className="card !p-0">
+        {loading ? (
+          <p className="p-6 text-center text-gray-500 text-sm">Đang tải...</p>
+        ) : items.length === 0 ? (
+          <p className="p-6 text-center text-gray-500 text-sm">Không có giao dịch nào.</p>
+        ) : (
+          <ul className="divide-y">
+            {items.map((t) => (
+              <li key={t.id} className="p-3 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full flex items-center justify-center text-lg" style={{ background: (t.category.color || "#6b7280") + "22" }}>
+                  {t.category.icon || "📦"}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">
+                    {t.category.name}
+                    {t.visibility === "SHARED" && <span className="ml-2 chip bg-primary/10 text-primary">Chung</span>}
+                  </p>
+                  <p className="text-xs text-gray-500 truncate">
+                    {formatDate(t.date)} · {t.paidBy.user.name}
+                    {t.note ? ` · ${t.note}` : ""}
+                  </p>
+                  {t.shares.length > 0 && (
+                    <p className="text-xs text-gray-400 truncate mt-0.5">
+                      {t.shares.map((s) => `${s.member.user.name}: ${formatVND(s.amount)}`).join(" • ")}
+                    </p>
+                  )}
+                </div>
+                <div className="text-right">
+                  <p className={t.type === "INCOME" ? "text-success font-semibold" : "text-danger font-semibold"}>
+                    {t.type === "INCOME" ? "+" : "-"}{formatVND(t.amount)}
+                  </p>
+                  <div className="flex gap-2 justify-end mt-1 text-xs">
+                    <button onClick={() => setEditing(t)} className="text-primary">Sửa</button>
+                    <button onClick={() => onDelete(t.id)} className="text-danger">Xoá</button>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+}

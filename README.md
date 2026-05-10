@@ -1,388 +1,295 @@
-# 💰 Expense Tracker — Ứng dụng Quản lý Thu Chi
+# 💰 Expense Tracker — Quản lý thu chi gia đình
 
-> Ứng dụng giúp cá nhân/hộ gia đình ghi chép, phân loại và phân tích dòng tiền thu - chi hằng ngày một cách trực quan, nhanh và bảo mật.
+> Ứng dụng web tự host (self-hosted) giúp **gia đình ghi chép thu chi cá nhân + chia sẻ + mục tiêu tiết kiệm chung**. Mobile-first, cài được như app (PWA), triển khai bằng Docker Compose trong vài phút.
+
+![status](https://img.shields.io/badge/status-MVP-green) ![pwa](https://img.shields.io/badge/PWA-ready-blue) ![docker](https://img.shields.io/badge/docker-compose-2496ED)
 
 ---
 
 ## 📑 Mục lục
 
-1. [Giới thiệu](#-giới-thiệu)
-2. [Tính năng](#-tính-năng)
-3. [Tech Stack](#-tech-stack)
-4. [Kiến trúc tổng quan](#-kiến-trúc-tổng-quan)
-5. [Cấu trúc thư mục](#-cấu-trúc-thư-mục)
-6. [Mô hình dữ liệu](#-mô-hình-dữ-liệu)
-7. [Cài đặt & Chạy](#-cài-đặt--chạy)
-8. [Biến môi trường](#-biến-môi-trường)
-9. [Scripts](#-scripts)
-10. [Quy ước code](#-quy-ước-code)
-11. [Quy trình Git](#-quy-trình-git)
-12. [Roadmap](#-roadmap)
-13. [Đóng góp](#-đóng-góp)
-14. [License](#-license)
-
----
-
-## 🎯 Giới thiệu
-
-**Expense Tracker** là một dự án cá nhân nhằm xây dựng một ứng dụng quản lý thu chi hoàn chỉnh, tập trung vào:
-
-- **Tốc độ nhập liệu** — thêm 1 giao dịch trong < 5 giây.
-- **Trực quan hoá** — biểu đồ thu/chi theo ngày, tuần, tháng, năm.
-- **Phân loại linh hoạt** — danh mục (category), nhãn (tag), ví (wallet/account).
-- **Bảo mật dữ liệu cá nhân** — dữ liệu thuộc về user, hỗ trợ export.
-- **Đa nền tảng** *(định hướng)* — web trước, mobile sau.
-
-### Đối tượng người dùng
-
-- Cá nhân muốn theo dõi chi tiêu hàng ngày.
-- Hộ gia đình quản lý ngân sách chung.
-- Freelancer cần tách thu nhập theo dự án/khách hàng.
+1. [Tính năng](#-tính-năng)
+2. [Tech Stack](#-tech-stack)
+3. [Yêu cầu hệ thống](#-yêu-cầu-hệ-thống)
+4. [Triển khai bằng Docker (khuyến nghị)](#-triển-khai-bằng-docker-khuyến-nghị)
+5. [Phát triển local (không Docker)](#-phát-triển-local-không-docker)
+6. [Biến môi trường](#-biến-môi-trường)
+7. [Migration & Seed dữ liệu](#-migration--seed-dữ-liệu)
+8. [Cài như App (PWA)](#-cài-như-app-pwa)
+9. [Cấu trúc thư mục](#-cấu-trúc-thư-mục)
+10. [Mô hình dữ liệu](#-mô-hình-dữ-liệu)
+11. [Hướng dẫn sử dụng cơ bản](#-hướng-dẫn-sử-dụng-cơ-bản)
+12. [Tài khoản mẫu](#-tài-khoản-mẫu)
+13. [Sao lưu & Khôi phục](#-sao-lưu--khôi-phục)
+14. [Roadmap](#-roadmap)
+15. [License](#-license)
 
 ---
 
 ## ✨ Tính năng
 
-### MVP (v0.1)
+### 🔐 Tài khoản & Thành viên
+- Đăng ký / Đăng nhập (email + mật khẩu, hash bằng bcrypt).
+- Mỗi user thuộc 1 **gia đình (family)** — workspace dùng chung.
+- Nhiều thành viên trong 1 gia đình. Vai trò: `OWNER` / `ADMIN` / `MEMBER`.
+- Admin mời/xoá/đổi vai trò thành viên qua **invite code**.
 
-- [ ] Đăng ký / Đăng nhập (email + password).
-- [ ] CRUD giao dịch (transaction): thu (income) / chi (expense).
-- [ ] Quản lý danh mục (category) có icon + màu.
-- [ ] Quản lý ví (wallet/account): tiền mặt, ngân hàng, ví điện tử.
-- [ ] Dashboard tổng quan: số dư, tổng thu, tổng chi tháng hiện tại.
-- [ ] Lọc giao dịch theo: khoảng thời gian, danh mục, ví, loại.
-- [ ] Biểu đồ tròn theo danh mục, biểu đồ cột thu/chi theo tháng.
+### 💸 Giao dịch
+- Loại: **Thu (income)** / **Chi (expense)**.
+- Trường: số tiền, danh mục, ghi chú, ngày, người tạo, **paid_by**.
+- **Visibility**:
+  - `PERSONAL` — chỉ người tạo thấy.
+  - `SHARED` — hiển thị cho các thành viên được chia.
+- **Split type**: `NONE` / `EQUAL` / `CUSTOM`.
+- Ví dụ: A trả 1.000.000 ₫ ăn tối, share 50/50 với B → app hiển thị tổng, ai trả, mỗi người chịu bao nhiêu *(MVP chưa có settle-up nợ)*.
 
-### v0.2
+### 🏷 Danh mục
+- Seed sẵn 10 danh mục **chi** (Ăn uống, Nhà cửa, Đi lại, Con cái, Sức khoẻ, Mua sắm, Giải trí, Gia đình/Họ hàng, Học tập, Khác) và 5 danh mục **thu** (Lương, Thưởng, Kinh doanh, Hoàn tiền, Khác).
+- Admin tự thêm/sửa/xoá.
 
-- [ ] Ngân sách (budget) theo danh mục/tháng + cảnh báo vượt.
-- [ ] Giao dịch định kỳ (recurring): lương, hoá đơn, thuê nhà.
-- [ ] Chuyển tiền giữa các ví (transfer).
-- [ ] Đa tiền tệ (multi-currency) + tỷ giá.
-- [ ] Export CSV / Excel.
+### 🎯 Mục tiêu tiết kiệm chung
+- Tạo goal: tên, số tiền mục tiêu, mô tả, danh sách thành viên, trạng thái (active / completed / archived).
+- Mỗi thành viên đóng góp nhiều lần (số tiền, ghi chú, ngày).
+- Hiển thị: target — đã góp — còn lại — % tiến độ — đóng góp theo từng thành viên — lịch sử.
 
-### v1.0
+### 📊 Dashboard
+- Tổng thu / tổng chi tháng này.
+- Chi cá nhân vs chi chung.
+- Số dư = thu − chi.
+- Top danh mục chi nhiều nhất.
+- Giao dịch gần đây.
+- Mục tiêu tiết kiệm đang chạy + tiến độ.
 
-- [ ] Mobile app (React Native / Flutter — quyết định sau).
-- [ ] Đồng bộ cloud + offline-first.
-- [ ] Chia sẻ ví/ngân sách với thành viên gia đình.
-- [ ] Thông báo (notification) nhắc nhập chi tiêu.
-- [ ] Đa ngôn ngữ (i18n): VI, EN.
+### 🔍 Lịch sử & bộ lọc
+- Lọc theo: khoảng thời gian, danh mục, thành viên, personal/shared.
+- Tìm kiếm theo ghi chú.
+- Sửa/xoá giao dịch.
 
-### Tương lai (nice-to-have)
+### 📈 Báo cáo
+- Thu vs chi theo tháng (12 tháng gần nhất).
+- Chi theo danh mục (pie).
+- Tổng chi chung của gia đình.
+- Chi tiêu theo từng thành viên.
+- Tiến độ các mục tiêu tiết kiệm.
 
-- [ ] OCR hoá đơn (chụp bill → tự nhập).
-- [ ] Import sao kê ngân hàng (PDF/CSV).
-- [ ] Gợi ý phân loại bằng AI.
-- [ ] Mục tiêu tiết kiệm (savings goal).
+### 📤 Export
+- Giao dịch → **CSV**.
+- Đóng góp tiết kiệm → **CSV**.
+
+### 📱 PWA
+- Manifest + Service Worker → cài như app trên iOS/Android.
+- Cache app shell để mở nhanh khi mạng yếu.
 
 ---
 
 ## 🛠 Tech Stack
 
-> **Trạng thái:** Chưa chốt — sẽ cập nhật sau khi quyết định.
-
-| Layer | Lựa chọn | Ghi chú |
-|---|---|---|
-| Frontend | _TBD_ | Ứng viên: Next.js / Vue 3 / SvelteKit |
-| Backend | _TBD_ | Ứng viên: Next.js API Routes / NestJS / FastAPI |
-| Database | _TBD_ | Ứng viên: PostgreSQL / SQLite / Supabase |
-| ORM | _TBD_ | Ứng viên: Prisma / Drizzle |
-| Auth | _TBD_ | Ứng viên: NextAuth / Supabase Auth / Clerk |
-| Styling | _TBD_ | Ứng viên: Tailwind CSS / shadcn/ui |
-| Charts | _TBD_ | Ứng viên: Recharts / Chart.js / ECharts |
-| Hosting | _TBD_ | Ứng viên: Vercel / Railway / self-host VPS |
-| CI/CD | GitHub Actions | Lint + test + build trên PR |
-
-> 👉 **Khi chốt stack, cập nhật bảng này VÀ phần [Cài đặt & Chạy](#-cài-đặt--chạy).**
+| Layer | Lựa chọn |
+|---|---|
+| Framework | **Next.js 15** (App Router) + **TypeScript** |
+| UI | **Tailwind CSS** + component thuần |
+| Charts | **Recharts** |
+| Auth | **NextAuth (Auth.js v5)** — Credentials |
+| Database | **PostgreSQL 16** |
+| ORM | **Prisma 5** |
+| Money | **decimal.js** + cột `Decimal(18,2)` |
+| Validation | **Zod** |
+| PWA | `@ducanh2912/next-pwa` (manifest + Workbox SW) |
+| Container | **Docker** + **docker-compose** |
+| Package manager | **pnpm** *(npm cũng được)* |
 
 ---
 
-## 🏗 Kiến trúc tổng quan
+## 💻 Yêu cầu hệ thống
 
-```
-┌──────────────┐      HTTPS      ┌──────────────┐      SQL       ┌──────────────┐
-│   Client     │ ──────────────► │   API/BFF    │ ─────────────► │   Database   │
-│ (Web/Mobile) │ ◄────────────── │  (Backend)   │ ◄───────────── │ (PostgreSQL) │
-└──────────────┘     JSON        └──────────────┘                 └──────────────┘
-        │                               │
-        │                               ├─► Auth Provider
-        │                               ├─► File Storage (receipts)
-        └──────────────────────────────►└─► Analytics
-```
-
-**Nguyên tắc:**
-
-- **Single source of truth**: DB là nguồn duy nhất, client luôn fetch lại sau mutation.
-- **API-first**: backend expose REST hoặc tRPC, client không truy cập DB trực tiếp.
-- **Stateless backend**: session lưu ở token (JWT) hoặc httpOnly cookie.
-- **Validation 2 lớp**: client (UX) + server (security) — server là cuối cùng.
+- Docker ≥ 24 + Docker Compose v2 *(cách dễ nhất)*
+- HOẶC: Node.js ≥ 20 + pnpm ≥ 9 + PostgreSQL ≥ 14 *(dev local)*
 
 ---
 
-## 📁 Cấu trúc thư mục
-
-> Đề xuất ban đầu — điều chỉnh khi chốt stack.
-
-```
-expense-tracker/
-├── .github/
-│   └── workflows/        # CI/CD GitHub Actions
-├── docs/                 # Tài liệu thiết kế, ADR, sơ đồ
-│   ├── architecture.md
-│   └── decisions/        # ADR (Architecture Decision Records)
-├── src/
-│   ├── app/              # Routes / pages
-│   ├── components/       # UI components dùng chung
-│   ├── features/         # Theo domain: transactions, wallets, budgets...
-│   │   ├── transactions/
-│   │   ├── wallets/
-│   │   ├── categories/
-│   │   └── budgets/
-│   ├── lib/              # Helper, utils, client (db, auth)
-│   ├── server/           # Backend logic, API handlers
-│   ├── styles/
-│   └── types/            # Shared TypeScript types
-├── prisma/ (hoặc db/)    # Schema + migrations
-├── tests/
-│   ├── unit/
-│   ├── integration/
-│   └── e2e/
-├── public/
-├── .env.example
-├── .gitignore
-├── CLAUDE.md             # ⚠️ Hướng dẫn cho AI assistant — ĐỌC TRƯỚC KHI CODE
-├── README.md
-└── package.json
-```
-
----
-
-## 🗄 Mô hình dữ liệu
-
-### Bảng chính
-
-```
-User (1) ──< Wallet (N)
-User (1) ──< Category (N)
-User (1) ──< Transaction (N)
-User (1) ──< Budget (N)
-
-Wallet (1) ──< Transaction (N)
-Category (1) ──< Transaction (N)
-Category (1) ──< Budget (N)
-```
-
-### Schema (pseudo)
-
-```ts
-User {
-  id            string  @id
-  email         string  @unique
-  passwordHash  string
-  name          string?
-  currency      string  @default("VND")
-  createdAt     DateTime
-}
-
-Wallet {
-  id          string  @id
-  userId      string
-  name        string          // "Tiền mặt", "Vietcombank"...
-  type        WalletType      // CASH | BANK | EWALLET | CREDIT
-  balance     Decimal
-  currency    string  @default("VND")
-  icon        string?
-  color       string?
-  archived    boolean @default(false)
-}
-
-Category {
-  id          string  @id
-  userId      string
-  name        string          // "Ăn uống", "Lương"...
-  type        TxType          // INCOME | EXPENSE
-  icon        string?
-  color       string?
-  parentId    string?         // hỗ trợ category cha-con
-}
-
-Transaction {
-  id          string  @id
-  userId      string
-  walletId    string
-  categoryId  string
-  type        TxType          // INCOME | EXPENSE | TRANSFER
-  amount      Decimal
-  currency    string
-  occurredAt  DateTime
-  note        string?
-  tags        string[]
-  attachments string[]        // URL ảnh hoá đơn
-  createdAt   DateTime
-  updatedAt   DateTime
-}
-
-Budget {
-  id          string  @id
-  userId      string
-  categoryId  string?
-  amount      Decimal
-  period      BudgetPeriod    // WEEKLY | MONTHLY | YEARLY
-  startDate   DateTime
-  endDate     DateTime?
-}
-```
-
-### Quy ước về tiền
-
-- Lưu **Decimal** (không dùng `float`) để tránh sai số.
-- Đơn vị nhỏ nhất là **đồng** (VND không có phần lẻ).
-- Hiển thị format `vi-VN`: `1.234.567 ₫`.
-
----
-
-## 🚀 Cài đặt & Chạy
-
-> Phần này sẽ chi tiết hơn sau khi chốt stack.
+## 🚀 Triển khai bằng Docker (khuyến nghị)
 
 ```bash
-# 1. Clone
-git clone <repo-url>
+# 1. Clone repo
+git clone https://github.com/hanhanhycc/expense-tracker.git
 cd expense-tracker
 
-# 2. Cài dependencies
-# (npm/pnpm/yarn — TBD)
-
-# 3. Tạo file env
+# 2. Tạo file env
 cp .env.example .env
-# → điền giá trị
+# → mở .env, đổi POSTGRES_PASSWORD và AUTH_SECRET (sinh: openssl rand -base64 32)
 
-# 4. Chạy migration
-# (prisma migrate dev / drizzle push — TBD)
+# 3. Build + chạy
+docker compose up -d --build
 
-# 5. Seed dữ liệu mẫu (tùy chọn)
-# npm run seed
+# 4. Chạy migration + seed (lần đầu)
+docker compose exec app pnpm db:migrate:deploy
+docker compose exec app pnpm db:seed
 
-# 6. Dev
-# npm run dev
+# 5. Mở
+open http://localhost:3000
+```
+
+**Cập nhật version mới:**
+```bash
+git pull && docker compose up -d --build
+docker compose exec app pnpm db:migrate:deploy
+```
+
+**Stop / xoá:**
+```bash
+docker compose down            # giữ data
+docker compose down -v         # XOÁ luôn volume DB (cẩn thận!)
+```
+
+---
+
+## 🧑‍💻 Phát triển local (không Docker)
+
+```bash
+pnpm install
+
+# Chỉ chạy DB bằng Docker
+docker compose up -d db
+
+cp .env.example .env.local
+# DATABASE_URL=postgresql://expense:expense@localhost:5432/expense
+
+pnpm db:migrate
+pnpm db:seed
+pnpm dev
+# http://localhost:3000
 ```
 
 ---
 
 ## 🔐 Biến môi trường
 
-```env
-# Database
-DATABASE_URL=
+Xem [`.env.example`](.env.example).
 
-# Auth
-AUTH_SECRET=
-AUTH_URL=http://localhost:3000
-
-# (Optional) OAuth
-GOOGLE_CLIENT_ID=
-GOOGLE_CLIENT_SECRET=
-
-# (Optional) Storage
-STORAGE_BUCKET=
-```
-
-> ⚠️ **KHÔNG commit `.env`**. Chỉ commit `.env.example` với key rỗng.
+| Biến | Bắt buộc | Mô tả |
+|---|---|---|
+| `DATABASE_URL` | ✅ | Postgres connection string |
+| `AUTH_SECRET` | ✅ | Random ≥ 32 ký tự, sinh bằng `openssl rand -base64 32` |
+| `AUTH_URL` | ✅ (prod) | URL public, vd `https://thuchi.example.com` |
+| `POSTGRES_USER` | ✅ (docker) | User DB |
+| `POSTGRES_PASSWORD` | ✅ (docker) | Mật khẩu DB |
+| `POSTGRES_DB` | ✅ (docker) | Tên DB |
+| `APP_PORT` | ⛔ | Port ngoài (default 3000) |
 
 ---
 
-## 📜 Scripts
-
-> Cập nhật khi có `package.json`.
-
-| Lệnh | Mô tả |
-|---|---|
-| `dev` | Chạy dev server |
-| `build` | Build production |
-| `start` | Chạy production build |
-| `lint` | ESLint + Prettier check |
-| `format` | Auto-format toàn bộ code |
-| `test` | Chạy unit tests |
-| `test:e2e` | Chạy E2E tests |
-| `db:migrate` | Chạy migration |
-| `db:seed` | Seed dữ liệu mẫu |
-
----
-
-## 📐 Quy ước code
-
-### Đặt tên
-
-- **Files/folders**: `kebab-case` (`transaction-list.tsx`).
-- **Components**: `PascalCase` (`TransactionList`).
-- **Variables/functions**: `camelCase`.
-- **Constants**: `UPPER_SNAKE_CASE`.
-- **Types/Interfaces**: `PascalCase`, không prefix `I`.
-
-### Cấu trúc component (nếu dùng React/Vue)
-
-- 1 component = 1 file, file < 200 dòng → tách nếu lớn hơn.
-- Logic phức tạp → tách custom hook / composable.
-- Không gọi API trực tiếp trong component → dùng service/query layer.
-
-### Git commit (Conventional Commits)
-
-```
-feat: thêm form tạo giao dịch
-fix: sửa sai số tính tổng chi tháng
-refactor: tách logic tính ngân sách
-docs: cập nhật README
-chore: nâng version dependencies
-test: thêm test cho budget service
-```
-
-### Branch
-
-- `main` — production-ready.
-- `dev` — tích hợp tính năng.
-- `feat/<tên>` — feature branch.
-- `fix/<tên>` — bug fix.
-
----
-
-## 🔁 Quy trình Git
+## 🗄 Migration & Seed dữ liệu
 
 ```bash
-# 1. Tạo branch mới từ dev
-git checkout dev && git pull
-git checkout -b feat/transaction-form
+pnpm db:migrate           # tạo migration mới (dev)
+pnpm db:migrate:deploy    # áp migration ở production
+pnpm db:reset             # reset DB (XOÁ DATA)
+pnpm db:seed              # seed danh mục + dữ liệu mẫu
+pnpm db:studio            # mở Prisma Studio
+```
 
-# 2. Code + commit nhỏ, thường xuyên
-git add -A && git commit -m "feat: thêm input số tiền"
+---
 
-# 3. Push & mở PR vào dev
-git push -u origin feat/transaction-form
+## 📲 Cài như App (PWA)
 
-# 4. Sau khi merge vào dev và test ổn → merge dev vào main
+**iOS (Safari):** Share → **Add to Home Screen**.
+**Android (Chrome):** Menu → **Install app**.
+
+---
+
+## 📁 Cấu trúc thư mục
+
+```
+expense-tracker/
+├── docker-compose.yml
+├── Dockerfile
+├── prisma/
+│   ├── schema.prisma
+│   └── seed.ts
+├── public/
+│   ├── manifest.webmanifest
+│   └── icons/
+├── src/
+│   ├── app/                    # Next.js App Router
+│   │   ├── (auth)/             # login, register
+│   │   ├── (app)/              # dashboard, add, history, savings, reports, settings
+│   │   ├── api/                # REST endpoints
+│   │   └── layout.tsx
+│   ├── components/
+│   ├── features/
+│   │   ├── transactions/
+│   │   ├── savings/
+│   │   ├── categories/
+│   │   └── members/
+│   ├── lib/                    # db, auth, money, csv, format
+│   └── styles/
+├── CLAUDE.md
+├── README.md
+└── package.json
+```
+
+---
+
+## 🗃 Mô hình dữ liệu
+
+```
+User ─< FamilyMember >─ Family
+Family ─< Category
+Family ─< Transaction >─ FamilyMember (created_by, paid_by)
+Transaction ─< TransactionShare >─ FamilyMember
+Family ─< SavingGoal ─< SavingGoalMember >─ FamilyMember
+SavingGoal ─< SavingContribution >─ FamilyMember
+```
+
+Chi tiết: [`prisma/schema.prisma`](prisma/schema.prisma).
+
+---
+
+## 📖 Hướng dẫn sử dụng cơ bản
+
+1. **Đăng ký tài khoản đầu tiên** → tự động tạo 1 gia đình mới, bạn là `OWNER`.
+2. **Settings → Members**: mời thêm người (sinh invite code, gửi cho họ → họ nhập khi đăng ký).
+3. **Settings → Categories**: sửa/thêm danh mục.
+4. Bấm **+** ở bottom nav để thêm giao dịch:
+   - Chọn Thu/Chi, nhập tiền (auto format `1.000.000 ₫`).
+   - Chọn danh mục, ngày, ghi chú.
+   - Khoản chung → bật **Chia sẻ**, chọn thành viên + cách chia (đều / tuỳ chỉnh).
+5. **Savings**: tạo mục tiêu chung, mỗi người đóng góp nhiều lần.
+6. **Dashboard** xem tổng quan, **History** lọc/sửa, **Reports** xem biểu đồ.
+7. **Export**: History → **Export CSV**.
+
+---
+
+## 👥 Tài khoản mẫu
+
+Sau khi `pnpm db:seed`:
+
+| Email | Mật khẩu | Vai trò |
+|---|---|---|
+| `owner@demo.local` | `demo1234` | OWNER |
+| `member@demo.local` | `demo1234` | MEMBER |
+
+Có sẵn ~30 giao dịch mẫu + 1 mục tiêu tiết kiệm.
+
+---
+
+## 💾 Sao lưu & Khôi phục
+
+```bash
+docker compose exec -T db pg_dump -U expense expense > backup-$(date +%F).sql
+docker compose exec -T db psql -U expense expense < backup-2026-05-10.sql
 ```
 
 ---
 
 ## 🗺 Roadmap
 
-- **Tuần 1**: Chốt stack, init project, schema DB, auth.
-- **Tuần 2**: CRUD transaction, wallet, category.
-- **Tuần 3**: Dashboard + biểu đồ.
-- **Tuần 4**: Budget + filter nâng cao.
-- **Tuần 5**: Polish UI, viết test, deploy.
-- **Tuần 6+**: Mobile, recurring, multi-currency...
+- [x] **v0.1 (MVP)** — Auth, Family, Transactions, Categories, Savings, Dashboard, History, Reports, Export, PWA.
+- [ ] **v0.2** — Giao dịch định kỳ, notification, dark mode.
+- [ ] **v0.3** — i18n (VI/EN), import CSV.
+- [ ] **v0.4** — Settle-up nợ, OAuth Google.
 
----
-
-## 🤝 Đóng góp
-
-Project cá nhân, nhưng PR/issue luôn được chào đón.
-
-1. Fork repo
-2. Tạo branch `feat/...`
-3. Commit theo Conventional Commits
-4. Mở PR mô tả rõ thay đổi + screenshot (nếu UI)
+> ❌ **Không** làm: bank sync, đa ví, đầu tư, vay/cho vay, kế toán doanh nghiệp.
 
 ---
 

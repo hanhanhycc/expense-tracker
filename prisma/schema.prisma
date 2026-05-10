@@ -1,0 +1,241 @@
+// Prisma schema — Expense Tracker
+// docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Enums
+// ─────────────────────────────────────────────────────────────
+
+enum Role {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum TxType {
+  INCOME
+  EXPENSE
+}
+
+enum CategoryKind {
+  INCOME
+  EXPENSE
+}
+
+enum Visibility {
+  PERSONAL
+  SHARED
+}
+
+enum SplitType {
+  NONE
+  EQUAL
+  CUSTOM
+}
+
+enum GoalStatus {
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+}
+
+// ─────────────────────────────────────────────────────────────
+// Auth & Family
+// ─────────────────────────────────────────────────────────────
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  members FamilyMember[]
+
+  @@map("users")
+}
+
+model Family {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members        FamilyMember[]
+  categories     Category[]
+  transactions   Transaction[]
+  savingGoals    SavingGoal[]
+  invites        Invite[]
+
+  @@map("families")
+}
+
+model FamilyMember {
+  id        String   @id @default(cuid())
+  userId    String
+  familyId  String
+  role      Role     @default(MEMBER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  createdTransactions Transaction[]        @relation("CreatedBy")
+  paidTransactions    Transaction[]        @relation("PaidBy")
+  shares              TransactionShare[]
+  goalMemberships     SavingGoalMember[]
+  contributions       SavingContribution[]
+
+  @@unique([userId, familyId])
+  @@index([familyId])
+  @@map("family_members")
+}
+
+model Invite {
+  id        String   @id @default(cuid())
+  familyId  String
+  code      String   @unique
+  email     String?
+  role      Role     @default(MEMBER)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  @@index([familyId])
+  @@map("invites")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Categories
+// ─────────────────────────────────────────────────────────────
+
+model Category {
+  id        String       @id @default(cuid())
+  familyId  String
+  name      String
+  kind      CategoryKind
+  icon      String?
+  color     String?
+  isDefault Boolean      @default(false)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  family       Family        @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+
+  @@index([familyId])
+  @@index([familyId, kind])
+  @@map("categories")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Transactions
+// ─────────────────────────────────────────────────────────────
+
+model Transaction {
+  id          String     @id @default(cuid())
+  familyId    String
+  amount      Decimal    @db.Decimal(18, 2)
+  type        TxType
+  categoryId  String
+  note        String?
+  date        DateTime   @db.Date
+  createdById String
+  paidById    String
+  visibility  Visibility @default(PERSONAL)
+  splitType   SplitType  @default(NONE)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  deletedAt   DateTime?
+
+  family    Family       @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  category  Category     @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  createdBy FamilyMember @relation("CreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  paidBy    FamilyMember @relation("PaidBy", fields: [paidById], references: [id], onDelete: Restrict)
+  shares    TransactionShare[]
+
+  @@index([familyId])
+  @@index([familyId, date])
+  @@index([familyId, categoryId])
+  @@map("transactions")
+}
+
+model TransactionShare {
+  id            String  @id @default(cuid())
+  transactionId String
+  memberId      String
+  amount        Decimal @db.Decimal(18, 2)
+
+  transaction Transaction  @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  member      FamilyMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([transactionId, memberId])
+  @@index([memberId])
+  @@map("transaction_shares")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Saving Goals
+// ─────────────────────────────────────────────────────────────
+
+model SavingGoal {
+  id           String     @id @default(cuid())
+  familyId     String
+  name         String
+  description  String?
+  targetAmount Decimal    @db.Decimal(18, 2)
+  status       GoalStatus @default(ACTIVE)
+  createdById  String
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  deletedAt    DateTime?
+
+  family        Family               @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  members       SavingGoalMember[]
+  contributions SavingContribution[]
+
+  @@index([familyId])
+  @@map("saving_goals")
+}
+
+model SavingGoalMember {
+  id           String @id @default(cuid())
+  savingGoalId String
+  memberId     String
+
+  savingGoal SavingGoal   @relation(fields: [savingGoalId], references: [id], onDelete: Cascade)
+  member     FamilyMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([savingGoalId, memberId])
+  @@index([memberId])
+  @@map("saving_goal_members")
+}
+
+model SavingContribution {
+  id           String   @id @default(cuid())
+  savingGoalId String
+  memberId     String
+  amount       Decimal  @db.Decimal(18, 2)
+  note         String?
+  date         DateTime @db.Date
+  createdAt    DateTime @default(now())
+
+  savingGoal SavingGoal   @relation(fields: [savingGoalId], references: [id], onDelete: Cascade)
+  member     FamilyMember @relation(fields: [memberId], references: [id], onDelete: Restrict)
+
+  @@index([savingGoalId])
+  @@index([memberId])
+  @@map("saving_contributions")
+}

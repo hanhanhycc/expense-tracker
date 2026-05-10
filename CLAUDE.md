@@ -1,263 +1,270 @@
 # 🤖 CLAUDE.md — Hướng dẫn cho AI Assistant
 
-> **File này dành cho Claude (và mọi AI coding assistant khác) khi làm việc trên repo này.**
+> **File này dành cho Claude (và mọi AI coding assistant).**
 > **BẮT BUỘC ĐỌC TRƯỚC KHI VIẾT BẤT KỲ DÒNG CODE NÀO.**
 >
-> Mục tiêu: giữ AI **không lạc hướng**, không tự ý thay đổi kiến trúc, không over-engineer, và luôn nhất quán với tầm nhìn của project.
+> Mục tiêu: giữ AI **không lạc hướng**, không tự ý phình scope, không over-engineer.
 
 ---
 
-## 📌 0. Quy tắc vàng (đọc kỹ — không được phá vỡ)
+## 📌 0. Quy tắc vàng (không phá vỡ)
 
-1. **KHÔNG tự ý đổi tech stack** đã chốt trong README. Nếu chưa chốt → **HỎI user trước**, không tự chọn.
-2. **KHÔNG tự thêm tính năng** ngoài phạm vi user yêu cầu. Làm đúng việc được giao.
-3. **KHÔNG refactor code không liên quan** tới task hiện tại.
-4. **KHÔNG xoá file/folder** nếu không được yêu cầu rõ ràng.
-5. **KHÔNG commit `.env`, secret, key, password** dưới mọi hình thức.
-6. **KHÔNG dùng `float`/`double` cho tiền tệ** — luôn dùng `Decimal` / `BigInt` / integer-cents.
-7. **KHÔNG bypass validation/auth** kể cả khi "chỉ để test".
-8. **LUÔN giữ code chạy được** sau mỗi commit. Không để repo ở trạng thái broken.
-9. **LUÔN dùng tiếng Việt** khi viết comment, commit message, UI text (trừ identifier code).
-10. **Khi không chắc → HỎI**, không đoán.
-
----
-
-## 🎯 1. Mục tiêu project (ghi nhớ luôn)
-
-Xây dựng **ứng dụng quản lý thu chi cá nhân**:
-
-- **User-first**: nhập liệu phải nhanh (< 5 giây / giao dịch).
-- **Trung thực dữ liệu**: con số phải chính xác tuyệt đối.
-- **Riêng tư**: dữ liệu thuộc về user, không leak, có thể export.
-- **Đẹp & đơn giản**: tránh tính năng rườm rà, ưu tiên UX rõ ràng.
-
-> Mọi quyết định kỹ thuật phải phục vụ 4 mục tiêu trên. Khi đứng giữa hai lựa chọn, chọn cái phục vụ user tốt hơn.
+1. **Stack đã chốt** — không tự đổi (xem mục [1](#-1-stack--tổng-quan-project-đã-chốt)).
+2. **KHÔNG tự thêm tính năng** ngoài MVP. Xem [danh sách CẤM](#-3-tính-năng-không-được-làm-trong-mvp).
+3. **KHÔNG refactor code không liên quan** task hiện tại.
+4. **KHÔNG xoá file/folder** nếu không được yêu cầu.
+5. **KHÔNG commit `.env`/secret/key/password**.
+6. **KHÔNG dùng `float`/`number` cho tiền** — luôn `Decimal` (Prisma) + `decimal.js`.
+7. **KHÔNG bypass auth/validation** kể cả khi "test".
+8. **LUÔN giữ code chạy được** sau mỗi commit.
+9. **Tiếng Việt** cho UI text, commit message, comment. Identifier code dùng tiếng Anh.
+10. **Không chắc → HỎI**, không đoán.
 
 ---
 
-## 🧭 2. Khi bắt đầu một task — checklist
+## 🎯 1. Stack & tổng quan project (đã chốt)
 
-Trước khi viết code, Claude **phải** trả lời được:
+| | |
+|---|---|
+| **Tên** | Expense Tracker — quản lý thu chi gia đình |
+| **Loại** | Self-hosted web PWA |
+| **Framework** | Next.js 15 App Router + TypeScript |
+| **DB** | PostgreSQL 16 + Prisma 5 |
+| **Auth** | NextAuth (Auth.js v5) — Credentials |
+| **UI** | Tailwind CSS, mobile-first, không dùng UI lib nặng |
+| **Charts** | Recharts |
+| **Money** | `Decimal(18,2)` + `decimal.js` |
+| **Validation** | Zod |
+| **PWA** | `@ducanh2912/next-pwa` |
+| **Deploy** | Docker Compose |
 
-- [ ] Task này thuộc feature nào? (transaction / wallet / budget / dashboard / ...)
-- [ ] Có ảnh hưởng tới schema DB không? Nếu có → cần migration.
-- [ ] Có ảnh hưởng tới API public không? Nếu có → cần update doc + version.
-- [ ] Có cần test không? (mặc định: **CÓ** với business logic, **KHÔNG bắt buộc** với UI thuần).
-- [ ] Có file/component đã tồn tại làm việc tương tự không? → **tái sử dụng**, không tạo mới trùng lặp.
-- [ ] Stack đã chốt chưa? Nếu chưa → **dừng, hỏi user**.
+**Đối tượng**: gia đình Việt Nam — tiền tệ chính **VND**, ngày `dd/MM/yyyy`, ngôn ngữ **tiếng Việt**.
 
 ---
 
-## 🧱 3. Nguyên tắc kiến trúc (không được vi phạm)
+## ✨ 2. Phạm vi MVP (chỉ làm những thứ này)
 
-### 3.1. Phân lớp rõ ràng
+- Auth: register, login, logout (email + password).
+- Family workspace + Members + Roles (OWNER/ADMIN/MEMBER) + Invite code.
+- Transactions: income/expense, personal/shared, split none/equal/custom, paid_by.
+- Categories: CRUD, có default seed.
+- Saving Goals: CRUD + Contributions của từng member.
+- Dashboard: tháng hiện tại.
+- History: filter + search + edit/delete.
+- Reports: 5 biểu đồ liệt kê trong README.
+- Export CSV: transactions + saving contributions.
+- PWA: manifest + SW cache shell.
 
+---
+
+## 🚫 3. Tính năng KHÔNG được làm trong MVP
+
+Nếu user yêu cầu các thứ dưới đây — **cảnh báo + hỏi xác nhận**:
+
+- ❌ Quản lý ví/tài khoản ngân hàng.
+- ❌ Sync ngân hàng / import sao kê.
+- ❌ Đa tiền tệ + tỷ giá.
+- ❌ Đầu tư, chứng khoán, crypto.
+- ❌ Vay/cho vay/khoản nợ phức tạp.
+- ❌ Settle-up nợ giữa thành viên (để v0.4).
+- ❌ Recurring transactions (để v0.2).
+- ❌ Kế toán doanh nghiệp / hoá đơn VAT.
+- ❌ OCR hoá đơn / AI gợi ý.
+- ❌ Notification push.
+- ❌ Dark mode (để v0.2 nếu rảnh).
+
+> **Mantra**: *"App này KHÔNG phải MoneyLover/YNAB. Nó là sổ thu chi gia đình đơn giản."*
+
+---
+
+## 🧭 4. Checklist trước khi bắt đầu một task
+
+- [ ] Task thuộc feature nào trong MVP?
+- [ ] Nếu không thuộc MVP → cảnh báo user, hỏi trước.
+- [ ] Đụng schema DB? → cần migration.
+- [ ] Đã có code/component tương tự chưa? → tái sử dụng.
+- [ ] Cần test? (Bắt buộc với business logic về tiền & split.)
+
+---
+
+## 🧱 5. Kiến trúc & quy ước
+
+### 5.1 Phân lớp
 ```
-UI (component)  →  Hook/Service  →  API client  →  Server handler  →  Repository  →  DB
+UI (component)  →  Server Action / API route  →  Service  →  Prisma  →  DB
 ```
+- **UI không gọi Prisma trực tiếp** — luôn qua server action / API route.
+- **Server LUÔN validate bằng Zod** + check authorization.
+- **Authorization rule**: mọi query filter theo `familyId` của session user. **KHÔNG** trust `familyId` từ client.
 
-- **UI không gọi DB trực tiếp**.
-- **UI không chứa business logic** phức tạp — đẩy vào hook/service.
-- **Server luôn validate input** dù client đã validate.
-
-### 3.2. Feature-based folder
-
-Code tổ chức theo **domain/feature**, không theo loại file:
-
-✅ Đúng:
+### 5.2 Folder feature-based
 ```
-features/transactions/
+src/features/transactions/
   ├── components/
-  ├── hooks/
-  ├── services/
+  ├── server/         # actions, services
+  ├── schema.ts       # Zod
   └── types.ts
 ```
 
-❌ Sai:
-```
-components/TransactionForm.tsx
-components/WalletForm.tsx
-hooks/useTransaction.ts
-hooks/useWallet.ts
-```
+### 5.3 Đặt tên
+| | |
+|---|---|
+| File/folder | `kebab-case` |
+| Component | `PascalCase` |
+| Variable/function | `camelCase` |
+| Constant | `UPPER_SNAKE_CASE` |
+| Type/Interface | `PascalCase`, không prefix `I` |
+| DB table/column | `snake_case` (Prisma `@map`) |
 
-### 3.3. Single Responsibility
+### 5.4 Giới hạn mềm
+- File ≤ 250 dòng.
+- Component ≤ 150 dòng JSX.
+- Function ≤ 50 dòng.
+- 1 file = 1 trách nhiệm.
 
-- 1 function = 1 việc.
-- 1 file < 200 dòng (soft limit). > 300 dòng → bắt buộc tách.
-- 1 component < 150 dòng JSX.
-
-### 3.4. Không tạo abstraction sớm
-
-- **Rule of three**: chỉ tách helper/abstraction khi đã có **3 chỗ dùng giống nhau**.
-- Không tạo wrapper "phòng khi cần sau này".
-
----
-
-## 💰 4. Quy tắc về tiền tệ (CỰC KỲ QUAN TRỌNG)
-
-1. **Lưu DB**: dùng `Decimal(18, 4)` hoặc lưu integer ở đơn vị nhỏ nhất (vd: VND lưu đồng, USD lưu cent).
-2. **Tính toán**: dùng thư viện `decimal.js` / `BigDecimal` / `Decimal` của ORM. **TUYỆT ĐỐI KHÔNG** dùng `+ - * /` của JS number cho tiền.
-3. **Hiển thị**: dùng `Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' })`.
-4. **Tỷ giá**: lưu kèm timestamp + nguồn, không hardcode.
-5. **Audit**: mọi thay đổi số dư ví phải có transaction record tương ứng. **Không update balance trực tiếp.**
+### 5.5 Không tạo abstraction sớm
+**Rule of three** — chỉ tách helper khi đã có ≥ 3 chỗ dùng giống nhau.
 
 ---
 
-## 🔐 5. Quy tắc bảo mật
+## 💰 6. Quy tắc về tiền (CỰC KỲ QUAN TRỌNG)
 
-- **Auth**: mọi API (trừ login/register) phải check session/token.
-- **Authorization**: mọi query phải filter theo `userId` của user hiện tại. **Không bao giờ trust client gửi `userId`.**
-- **Password**: hash bằng `bcrypt` (cost ≥ 12) hoặc `argon2`. Không lưu plain.
-- **SQL injection**: chỉ dùng ORM/parameterized query. **Không string-concat SQL.**
-- **XSS**: framework auto-escape; nếu render HTML thô → dùng sanitizer (`DOMPurify`).
-- **CORS**: whitelist domain, không `*` ở production.
-- **Rate limit**: bắt buộc cho login, register, forgot-password.
-- **Secret**: chỉ qua env, không hardcode, không log.
-
----
-
-## 🧪 6. Testing
-
-### Bắt buộc test:
-
-- Logic tính tổng thu/chi/số dư.
-- Logic ngân sách (budget).
-- Logic chuyển tiền giữa ví.
-- Quy đổi tiền tệ.
-- Validation input quan trọng.
-
-### Không bắt buộc test:
-
-- UI thuần hiển thị.
-- Component nhỏ không có logic.
-
-### Quy ước:
-
-- Test file nằm cạnh source: `transaction.service.ts` → `transaction.service.test.ts`.
-- Đặt tên test bằng tiếng Việt mô tả hành vi: `it('tính đúng số dư khi có giao dịch chuyển tiền', ...)`.
+1. DB: `Decimal(18, 2)` (Prisma type `Decimal`).
+2. Tính toán: `decimal.js` → `new Decimal(a).plus(b)`. **CẤM** `+ - * /` của JS number cho tiền.
+3. Hiển thị: `Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 })`.
+4. Input: nhập số nguyên VND, format khi blur, parse khi focus.
+5. Split equal: chia đều, **phần dư cộng vào người đầu tiên** (không tạo số lẻ).
+   - VD: 1.000.001 ₫ chia 3 → `333.335 / 333.333 / 333.333`.
+6. Split custom: tổng các phần phải = `amount`. Validate ở server.
 
 ---
 
-## 🎨 7. Quy tắc UI/UX
+## 🔐 7. Bảo mật
 
-- **Mobile-first**: design cho màn hình hẹp trước.
-- **Loading state**: mọi action async phải có feedback (spinner / skeleton).
-- **Error state**: mọi lỗi phải hiển thị thông báo thân thiện tiếng Việt, không show stack trace.
-- **Empty state**: list rỗng phải có illustration + CTA, không để trống.
-- **Accessibility**: label cho mọi input, contrast ≥ AA, keyboard navigable.
-- **Currency input**: format khi blur, parse khi focus. Không cho nhập ký tự không phải số.
-- **Date**: dùng `dd/MM/yyyy` (định dạng Việt Nam).
-
----
-
-## 🗂 8. Quy tắc database
-
-1. **Migration là bắt buộc** — không sửa schema thủ công trên DB.
-2. **Không xoá cột/bảng** trong migration production — đánh dấu deprecated trước, xoá ở version sau.
-3. **Index** cho mọi cột được dùng trong `WHERE`, `ORDER BY` thường xuyên (đặc biệt: `userId`, `occurredAt`, `walletId`).
-4. **Foreign key** bắt buộc, kèm `ON DELETE` rõ ràng (CASCADE / SET NULL / RESTRICT).
-5. **Soft delete** với bảng quan trọng (transaction, wallet) — dùng `deletedAt`.
-6. **Timestamp**: mọi bảng có `createdAt`, `updatedAt`. Lưu UTC.
+- Password: `bcrypt` cost 12.
+- Session: NextAuth JWT (httpOnly cookie).
+- Mọi API check `auth()` đầu hàm. Trả `401` nếu null.
+- Mọi query filter `familyId = session.user.familyId`.
+- Action chỉ ADMIN/OWNER (mời member, sửa category, xoá goal): check role.
+- SQL injection: chỉ dùng Prisma. Không `$queryRawUnsafe`.
+- XSS: React auto-escape; nếu render HTML thô → cấm.
+- Rate limit: login & register (basic, in-memory cũng OK cho MVP).
+- Invite code: random 8 ký tự, hết hạn 7 ngày, dùng 1 lần.
+- Secret: chỉ qua env, không hardcode, không log.
 
 ---
 
-## 📝 9. Quy tắc commit & PR
+## 🗄 8. Database
 
-### Commit message (Conventional Commits, tiếng Việt OK):
+- Schema ở `prisma/schema.prisma`.
+- Migration bắt buộc — không sửa DB tay.
+- Mọi bảng có `id (cuid)`, `createdAt`, `updatedAt`.
+- Soft delete cho `transactions`, `savingGoals` (`deletedAt`).
+- Index bắt buộc cho: `familyId`, `(familyId, date)`, `(familyId, categoryId)`, `(savingGoalId)`.
+- FK luôn có `onDelete` rõ ràng.
+
+---
+
+## 🎨 9. UI/UX
+
+- **Mobile-first**: viewport 360px là baseline.
+- **Bottom nav** trên mobile: Dashboard / Add (FAB) / History / Savings / Reports. Settings vào trong avatar.
+- Loading: skeleton hoặc spinner — không để màn trắng.
+- Error: toast tiếng Việt thân thiện. Không show stack trace.
+- Empty state: illustration + CTA.
+- Currency input: chỉ cho nhập số, format khi blur.
+- Date picker: format `dd/MM/yyyy`.
+- Khoảng cách: dùng Tailwind spacing scale (`p-3`, `p-4`, `gap-3`...).
+- Màu: hệ palette giới hạn — primary, success (income), danger (expense), gray. **Không** thêm màu lung tung.
+
+---
+
+## 🧪 10. Testing
+
+**Bắt buộc** test (Vitest):
+- `splitEqual()`, `splitCustom()` — chia tiền.
+- Tính tổng dashboard (income/expense/balance).
+- Tính progress saving goal.
+- Authorization helper (`assertFamilyAccess`).
+
+**Không bắt buộc**: UI thuần, component trang trí.
+
+---
+
+## 📝 11. Commit (Conventional Commits, tiếng Việt OK)
 
 ```
-feat(transaction): thêm form tạo giao dịch nhanh
-fix(budget): sửa lỗi tính sai khi đổi tháng
-refactor(wallet): tách service ra khỏi component
-docs(readme): cập nhật hướng dẫn cài đặt
-test(transaction): thêm test cho service tính tổng
-chore(deps): nâng prisma lên 5.x
+feat(transaction): thêm form chia sẻ giao dịch
+fix(saving): sửa tính sai % khi target = 0
+refactor(money): tách formatter ra lib chung
+docs(readme): cập nhật hướng dẫn deploy
+chore(deps): nâng prisma 5.20
+test(split): thêm test cho splitEqual với phần dư
 ```
 
-### Quy tắc:
-
-- 1 commit = 1 thay đổi logic. **Không gộp** "fix typo + thêm feature + refactor" vào 1 commit.
-- Subject ≤ 72 ký tự.
-- Khi commit lớn → thêm body mô tả "vì sao", không chỉ "làm gì".
+- 1 commit = 1 thay đổi logic.
+- Subject ≤ 72 ký tự, không chấm cuối.
 
 ---
 
-## 🚫 10. Anti-patterns — TUYỆT ĐỐI TRÁNH
+## 🚫 12. Anti-patterns — TUYỆT ĐỐI TRÁNH
 
 | ❌ Sai | ✅ Đúng |
 |---|---|
-| `let total = 0; items.forEach(i => total += i.amount)` cho tiền | `Decimal.sum(items.map(i => i.amount))` |
-| Update `wallet.balance` trực tiếp | Tạo transaction → trigger/recompute balance |
-| `SELECT * FROM transactions WHERE user_id = ${userId}` | Parameterized query qua ORM |
-| `if (user.role === 'admin')` ở client để ẩn nút → tin tưởng | Check authorization ở server |
-| Tạo file `utils.ts` chứa 50 function lung tung | Tách theo domain: `money-utils.ts`, `date-utils.ts` |
-| Comment giải thích code khó hiểu | Refactor cho code tự đọc được |
-| `try { ... } catch (e) {}` nuốt lỗi | Log + rethrow, hoặc xử lý cụ thể |
-| `any` trong TypeScript | Type rõ ràng, hoặc `unknown` + narrow |
-| Hardcode chuỗi tiếng Việt khắp nơi | Tập trung ở 1 file i18n (kể cả khi chỉ 1 ngôn ngữ) |
+| `let total = 0; items.forEach(i => total += i.amount)` | `items.reduce((s,i) => s.plus(i.amount), new Decimal(0))` |
+| Tin `userId`/`familyId` từ client | Lấy từ `auth()` server-side |
+| `prisma.transaction.findMany({ where: { id } })` | `... where: { id, familyId: session.familyId }` |
+| Component fetch trực tiếp `prisma.*` | Server action / API route |
+| Tạo `utils.ts` lung tung | Chia theo domain: `lib/money.ts`, `lib/date.ts`, `lib/csv.ts` |
+| `any` | Type cụ thể, hoặc `unknown` + narrow |
+| `try {} catch(e) {}` nuốt lỗi | Log + rethrow / xử lý cụ thể |
+| Hardcode chuỗi VI khắp nơi | Tạm thời gom vào 1 file `messages.ts`, sau dễ i18n |
+| Dùng `Date` thẳng cho ngày sinh nhật/giao dịch | Lưu UTC, format theo `vi-VN` khi hiển thị |
 
 ---
 
-## 🔄 11. Khi gặp tình huống không chắc
+## 🔄 13. Khi gặp tình huống không chắc
 
-**Quy trình quyết định:**
-
-1. Đọc lại CLAUDE.md + README.md.
-2. Tìm code/pattern tương tự đã có trong repo → theo pattern đó.
-3. Nếu vẫn không chắc → **DỪNG, hỏi user** với câu hỏi cụ thể:
-   - "Tôi thấy có 2 cách: A (...) và B (...). Bạn muốn cách nào?"
-   - **Không** hỏi mơ hồ kiểu "Bạn muốn làm gì?".
-4. Ghi quyết định vào `docs/decisions/` (ADR) nếu là quyết định kiến trúc lớn.
+1. Đọc lại CLAUDE.md + README.md + schema.
+2. Tìm pattern tương tự trong repo → theo pattern đó.
+3. Vẫn không chắc → **DỪNG, hỏi user** câu hỏi cụ thể (cho lựa chọn A/B/C).
+4. Quyết định kiến trúc lớn → ghi vào `docs/decisions/NNN-xxx.md`.
 
 ---
 
-## 📋 12. Checklist trước khi báo "xong"
+## 📋 14. Checklist trước khi báo "xong"
 
-Trước khi nói task hoàn thành, kiểm tra:
-
-- [ ] Code chạy được (`npm run dev` không lỗi).
-- [ ] Lint pass (`npm run lint`).
-- [ ] Type-check pass (nếu dùng TS).
+- [ ] `pnpm dev` chạy không lỗi.
+- [ ] `pnpm lint` pass.
+- [ ] `pnpm typecheck` pass (`tsc --noEmit`).
 - [ ] Test liên quan pass.
-- [ ] Không có `console.log` debug sót lại.
-- [ ] Không có TODO chưa giải quyết trong code mới (hoặc đã note rõ).
+- [ ] Không `console.log` debug sót.
 - [ ] `.env.example` đã update nếu thêm env mới.
-- [ ] README đã update nếu có thay đổi cách chạy/cấu hình.
-- [ ] Đã thử nghiệm happy path **VÀ** ít nhất 1 edge case.
+- [ ] README cập nhật nếu đổi cách chạy/cấu hình.
+- [ ] Đã thử happy path **VÀ** ≥ 1 edge case.
+- [ ] Migration đã sinh nếu sửa schema.
 
 ---
 
-## 🧠 13. Context cần load mỗi session
+## 🧠 15. Context cần đọc mỗi session
 
-Khi bắt đầu phiên làm việc mới, Claude **phải** đọc:
+1. `README.md` — tầm nhìn & cách chạy.
+2. `CLAUDE.md` — rule (file này).
+3. `prisma/schema.prisma` — data model.
+4. File/folder liên quan trực tiếp task.
 
-1. `README.md` — nắm tầm nhìn & stack.
-2. `CLAUDE.md` (file này) — nắm rule.
-3. `docs/decisions/` — nắm các quyết định đã chốt.
-4. `prisma/schema.prisma` (hoặc tương đương) — nắm data model hiện tại.
-5. File/folder liên quan trực tiếp tới task.
-
-**KHÔNG** đọc toàn bộ codebase — chỉ đọc cái cần.
+**KHÔNG** đọc toàn codebase — chỉ đọc cái cần.
 
 ---
 
-## 🆘 14. Khi user yêu cầu thứ trái với CLAUDE.md
+## 🆘 16. Khi user yêu cầu trái CLAUDE.md
 
 - **Không** im lặng làm theo.
-- **Cảnh báo** lý do tại sao điều đó vi phạm rule + hậu quả tiềm ẩn.
-- **Hỏi xác nhận** "Bạn vẫn muốn làm vậy chứ?".
-- Nếu user xác nhận → làm, nhưng đề xuất cập nhật CLAUDE.md để reflect quyết định mới.
+- **Cảnh báo** lý do + hậu quả.
+- **Hỏi xác nhận**: "Bạn vẫn muốn làm vậy chứ?"
+- Nếu xác nhận → làm + đề xuất update CLAUDE.md.
 
 ---
 
-## 📞 15. Liên hệ & Phản hồi
-
-- Owner: _<user>_
-- Nếu file này lỗi thời, **đề xuất update** ngay khi phát hiện.
-- File này là **living document** — cập nhật khi project phát triển.
-
----
-
-> **Tóm lại trong 1 câu:**
-> *Làm đúng việc được giao, theo pattern đã có, không lạc đề, không tự sáng tạo, hỏi khi không chắc, và luôn nhớ đây là app về **tiền** — sai 1 đồng cũng là lỗi.*
+> **Tóm gọn 1 câu:**
+> *Đây là **app sổ thu chi gia đình đơn giản** — KHÔNG phải app finance phức tạp. Làm đúng MVP, theo pattern đã có, sai 1 đồng cũng là lỗi.*
