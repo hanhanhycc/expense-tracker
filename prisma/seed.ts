@@ -148,6 +148,31 @@ async function main() {
     ],
   });
 
+  // ─────────────────────────────────────────────────────────────
+  // Tài khoản owner thật (idempotent — không xoá nếu đã có)
+  // ─────────────────────────────────────────────────────────────
+  const realEmail = "hi@thachhan.net";
+  const existing = await prisma.user.findUnique({ where: { email: realEmail } });
+  if (!existing) {
+    const realFamily = await prisma.family.create({ data: { name: "Gia đình Hân" } });
+    await prisma.category.createMany({
+      data: [
+        ...DEFAULT_EXPENSE_CATEGORIES.map((c) => ({ ...c, kind: CategoryKind.EXPENSE, isDefault: true, familyId: realFamily.id })),
+        ...DEFAULT_INCOME_CATEGORIES.map((c) => ({ ...c, kind: CategoryKind.INCOME, isDefault: true, familyId: realFamily.id })),
+      ],
+    });
+    const realPasswordHash = await bcrypt.hash("12345678", 12);
+    const realUser = await prisma.user.create({
+      data: { email: realEmail, name: "Hân", passwordHash: realPasswordHash },
+    });
+    await prisma.familyMember.create({
+      data: { userId: realUser.id, familyId: realFamily.id, role: Role.OWNER },
+    });
+    console.log(`   ${realEmail} / 12345678 (OWNER — Gia đình Hân)`);
+  } else {
+    console.log(`   ${realEmail} đã tồn tại, bỏ qua`);
+  }
+
   console.log("✅ Seed xong!");
   console.log("   owner@demo.local / demo1234");
   console.log("   member@demo.local / demo1234");
