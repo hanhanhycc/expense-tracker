@@ -1,9 +1,17 @@
 #!/usr/bin/env bash
 # update.sh — Pull image mới nhất từ GHCR và restart Expense Tracker trên NAS
-# Đặt tại: /volume1/docker/expense-tracker/update.sh
-# Chạy:   sudo bash update.sh
+# Đặt tại: /volume1/docker/expense-tracker/scripts/update.sh
+# Chạy:   sudo bash scripts/update.sh           (chỉ update + migrate)
+#         sudo bash scripts/update.sh --seed    (update + migrate + chạy seed)
 
 set -euo pipefail
+
+RUN_SEED=false
+for arg in "$@"; do
+  case "$arg" in
+    --seed) RUN_SEED=true ;;
+  esac
+done
 
 # ─────────────────────────────────────────────
 # Config
@@ -76,6 +84,14 @@ $DC -f "$COMPOSE_FILE" exec -T "$SERVICE" pnpm db:migrate:deploy || {
   err "Migration thất bại — xem log: $DC -f $COMPOSE_FILE logs $SERVICE"
   exit 1
 }
+
+if $RUN_SEED; then
+  log "🌱 Chạy seed..."
+  $DC -f "$COMPOSE_FILE" exec -T "$SERVICE" pnpm prisma db seed || {
+    err "Seed thất bại — xem log ở trên"
+    exit 1
+  }
+fi
 
 # ─────────────────────────────────────────────
 # Cleanup image cũ
