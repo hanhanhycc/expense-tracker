@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { logActivity } from "@/lib/activity-log";
 
 const schema = z.object({
   name: z.string().trim().min(1, "Tên gia đình không được trống").max(80),
@@ -31,10 +32,28 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: parsed.error.issues[0]?.message || "Dữ liệu không hợp lệ" }, { status: 400 });
   }
 
+  const current = await prisma.family.findUnique({
+    where: { id: session.user.familyId },
+    select: { name: true },
+  });
+
   const updated = await prisma.family.update({
     where: { id: session.user.familyId },
     data: { name: parsed.data.name },
     select: { id: true, name: true },
   });
+
+  if (current && current.name !== updated.name) {
+    await logActivity({
+      familyId: session.user.familyId,
+      actorId: session.user.id,
+      actorName: session.user.name || session.user.email,
+      action: "UPDATE",
+      entity: "family",
+      entityId: session.user.familyId,
+      summary: `Đổi tên gia đình: "${current.name}" → "${updated.name}"`,
+    });
+  }
+
   return NextResponse.json(updated);
 }

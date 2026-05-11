@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { logActivity } from "@/lib/activity-log";
 
 const schema = z.object({
   name: z.string().trim().min(1, "Tên không được trống").max(80),
@@ -50,6 +51,24 @@ export async function PATCH(req: Request) {
     data: { name, email, phone: phone ? phone : null },
     select: { id: true, name: true, email: true, phone: true },
   });
+
+  if (session.user.familyId) {
+    const changes: string[] = [];
+    if (name !== session.user.name) changes.push(`tên: "${session.user.name}" → "${name}"`);
+    if (email !== session.user.email) changes.push(`email: ${session.user.email} → ${email}`);
+    if ((phone || "") !== "") changes.push("số điện thoại");
+    if (changes.length > 0) {
+      await logActivity({
+        familyId: session.user.familyId,
+        actorId: session.user.id,
+        actorName: name,
+        action: "UPDATE",
+        entity: "profile",
+        entityId: session.user.id,
+        summary: `Cập nhật hồ sơ cá nhân — ${changes.join(", ")}`,
+      });
+    }
+  }
 
   return NextResponse.json(updated);
 }

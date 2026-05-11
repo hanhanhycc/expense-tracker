@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { Prisma, GoalStatus } from "@prisma/client";
 import { sumMoney } from "@/lib/money";
+import { logActivity } from "@/lib/activity-log";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -29,6 +30,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     name: g.name,
     description: g.description,
     status: g.status,
+    createdById: g.createdById,
     targetAmount: g.targetAmount.toString(),
     totalContributed: total.toString(),
     progress: Number(g.targetAmount) > 0 ? Math.min(100, (Number(total) / Number(g.targetAmount)) * 100) : 0,
@@ -55,36 +57,102 @@ const updateSchema = z.object({
   status: z.enum(["ACTIVE", "COMPLETED", "ARCHIVED"]).optional(),
 });
 
+/** OWNER/ADMIN HOẶC người tạo goal */
+function canManageGoal(session: { user: { role: string; memberId: string } }, createdById: string) {
+  return (
+    session.user.role === "OWNER" ||
+    session.user.role === "ADMIN" ||
+    session.user.memberId === createdById
+  );
+}
+
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (!session?.user?.familyId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { id } = await params;
+
+  const existing = await prisma.savingGoal.findFirst({
+    where: { id, familyId: session.user.familyId, deletedAt: null },
+    select: { id: true, name: true, targetAmount: true, status: true, description: true, createdById: true },
+  });
+  if (!existing) return NextResponse.json({ error: "Không tìm thấy" }, { status: 404 });
+  if (!canManageGoal(session, existing.createdById)) {
+    return NextResponse.json({ error: "Bạn không có quyền sửa mục tiêu này" }, { status: 403 });
+  }
+
   const body = await req.json().catch(() => null);
   const parsed = updateSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: "Dữ liệu không hợp lệ" }, { status: 400 });
 
   const data: Prisma.SavingGoalUpdateManyMutationInput = {};
-  if (parsed.data.name !== undefined) data.name = parsed.data.name;
-  if (parsed.data.description !== undefined) data.description = parsed.data.description;
-  if (parsed.data.targetAmount !== undefined) data.targetAmount = new Prisma.Decimal(parsed.data.targetAmount);
-  if (parsed.data.status) data.status = parsed.data.status as GoalStatus;
+  const changes: string[] = [];
+  if (parsed.data.name !== undefined && parsed.data.name !== existing.name) {
+    data.name = parsed.data.name;
+    changes.push(`tên: "${existing.name}" → "${parsed.data.name}"`);
+  }
+  if (parsed.data.description !== undefined && parsed.data.description !== existing.description) {
+    data.description = parsed.data.description;
+    changes.push("mô tả");
+  }
+  if (parsed.data.targetAmount !== undefined && parsed.data.targetAmount !== Number(existing.targetAmount)) {
+    data.targetAmount = new Prisma.Decimal(parsed.data.targetAmount);
+    changes.push(
+      `mục tiêu: ${Number(existing.targetAmount).toLocaleString("vi-VN")} ₫ → ${parsed.data.targetAmount.toLocaleString("vi-VN")} ₫`
+    );
+  }
+  if (parsed.data.status && parsed.data.status !== existing.status) {
+    data.status = parsed.data.status as GoalStatus;
+    changes.push(`trạng thái: ${existing.status} → ${parsed.data.status}`);
+  }
 
-  const r = await prisma.savingGoal.updateMany({
-    where: { id, familyId: session.user.familyId, deletedAt: null },
-    data,
+  if (Object.keys(data).length === 0) {
+    return NextResponse.json({ ok: true, unchanged: true });
+  }
+
+  await prisma.savingGoal.update({ where: { id }, data });
+
+  await logActivity({
+    familyId: session.user.familyId,
+    actorId: session.user.id,
+    actorName: session.user.name || session.user.email,
+    action: "UPDATE",
+    entity: "saving_goal",
+    entityId: id,
+    summary: `Sửa mục tiêu "${existing.name}" — ${changes.join(", ")}`,
   });
-  if (r.count === 0) return NextResponse.json({ error: "Không tìm thấy" }, { status: 404 });
+
   return NextResponse.json({ ok: true });
 }
 
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (!session?.user?.familyId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (session.user.role === "MEMBER") return NextResponse.json({ error: "Không có quyền" }, { status: 403 });
   const { id } = await params;
-  await prisma.savingGoal.updateMany({
-    where: { id, familyId: session.user.familyId },
+
+  const existing = await prisma.savingGoal.findFirst({
+    where: { id, familyId: session.user.familyId, deletedAt: null },
+    select: { id: true, name: true, createdById: true },
+  });
+  if (!existing) return NextResponse.json({ error: "Không tìm thấy" }, { status: 404 });
+  if (!canManageGoal(session, existing.createdById)) {
+    return NextResponse.json({ error: "Bạn không có quyền xoá mục tiêu này" }, { status: 403 });
+  }
+
+  await prisma.savingGoal.update({
+    where: { id },
     data: { deletedAt: new Date() },
   });
+
+  await logActivity({
+    familyId: session.user.familyId,
+    actorId: session.user.id,
+    actorName: session.user.name || session.user.email,
+    action: "DELETE",
+    entity: "saving_goal",
+    entityId: id,
+    summary: `Xoá mục tiêu "${existing.name}"`,
+  });
+
   return NextResponse.json({ ok: true });
 }
+

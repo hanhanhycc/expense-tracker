@@ -241,3 +241,25 @@ model SavingContribution {
   @@index([memberId])
   @@map("saving_contributions")
 }
+
+// ─────────────────────────────────────────────────────────────
+// Activity Log
+// ─────────────────────────────────────────────────────────────
+
+model ActivityLog {
+  id         String   @id @default(cuid())
+  familyId   String
+  actorId    String?  // userId — null nếu hệ thống
+  actorName  String   // snapshot tên (để giữ log kể cả khi user bị xoá)
+  action     String   // CREATE / UPDATE / DELETE / INVITE / ROLE_CHANGE ...
+  entity     String   // saving_goal / contribution / member / invite / family / profile
+  entityId   String?
+  summary    String   // mô tả tiếng Việt ngắn gọn
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  @@index([familyId, createdAt])
+  @@index([familyId, entity])
+  @@map("activity_logs")
+}
+

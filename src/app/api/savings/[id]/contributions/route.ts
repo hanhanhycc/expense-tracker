@@ -3,6 +3,7 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { Prisma } from "@prisma/client";
+import { logActivity } from "@/lib/activity-log";
 
 const schema = z.object({
   amount: z.coerce.number().positive(),
@@ -23,7 +24,14 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const parsed = schema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: "Dữ liệu không hợp lệ" }, { status: 400 });
 
-  await prisma.savingContribution.create({
+  // memberId phải thuộc family
+  const member = await prisma.familyMember.findFirst({
+    where: { id: parsed.data.memberId, familyId: session.user.familyId },
+    include: { user: { select: { name: true } } },
+  });
+  if (!member) return NextResponse.json({ error: "Thành viên không hợp lệ" }, { status: 400 });
+
+  const c = await prisma.savingContribution.create({
     data: {
       savingGoalId: id,
       memberId: parsed.data.memberId,
@@ -32,5 +40,18 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       date: new Date(parsed.data.date),
     },
   });
+
+  await logActivity({
+    familyId: session.user.familyId,
+    actorId: session.user.id,
+    actorName: session.user.name || session.user.email,
+    action: "CREATE",
+    entity: "contribution",
+    entityId: c.id,
+    summary: `${member.user.name} đóng góp ${parsed.data.amount.toLocaleString("vi-VN")} ₫ vào "${goal.name}"`,
+    metadata: { goalId: id },
+  });
+
   return NextResponse.json({ ok: true });
 }
+

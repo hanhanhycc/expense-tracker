@@ -16,6 +16,7 @@ export default async function SettingsIndexPage() {
     canManage && { href: "/settings/members", icon: "👥", title: "Thành viên", desc: "Mời, đổi vai trò, xoá thành viên" },
     isOwner && { href: "/settings/family", icon: "🏠", title: "Gia đình", desc: `Sửa tên gia đình "${family?.name ?? ""}"` },
     { href: "/settings/categories", icon: "🏷", title: "Danh mục", desc: "Quản lý danh mục thu / chi" },
+    canManage && { href: "/settings/logs", icon: "📝", title: "Nhật ký hoạt động", desc: "Lịch sử thay đổi trong gia đình" },
   ].filter(Boolean) as { href: string; icon: string; title: string; desc: string }[];
 
   return (

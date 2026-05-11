@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { Prisma, GoalStatus } from "@prisma/client";
 import { sumMoney } from "@/lib/money";
+import { logActivity } from "@/lib/activity-log";
 
 const createSchema = z.object({
   name: z.string().min(1).max(120),
@@ -32,6 +33,7 @@ export async function GET() {
       name: g.name,
       description: g.description,
       status: g.status,
+      createdById: g.createdById,
       targetAmount: g.targetAmount.toString(),
       totalContributed: total.toString(),
       progress: Number(g.targetAmount) > 0 ? Math.min(100, (Number(total) / Number(g.targetAmount)) * 100) : 0,
@@ -50,6 +52,15 @@ export async function POST(req: Request) {
   const parsed = createSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: "Dữ liệu không hợp lệ" }, { status: 400 });
 
+  // Đảm bảo memberIds đều thuộc family hiện tại
+  const validMembers = await prisma.familyMember.findMany({
+    where: { id: { in: parsed.data.memberIds }, familyId: session.user.familyId },
+    select: { id: true },
+  });
+  if (validMembers.length !== parsed.data.memberIds.length) {
+    return NextResponse.json({ error: "Có thành viên không thuộc gia đình" }, { status: 400 });
+  }
+
   const goal = await prisma.savingGoal.create({
     data: {
       familyId: session.user.familyId,
@@ -61,5 +72,17 @@ export async function POST(req: Request) {
       members: { create: parsed.data.memberIds.map((mid) => ({ memberId: mid })) },
     },
   });
+
+  await logActivity({
+    familyId: session.user.familyId,
+    actorId: session.user.id,
+    actorName: session.user.name || session.user.email,
+    action: "CREATE",
+    entity: "saving_goal",
+    entityId: goal.id,
+    summary: `Tạo mục tiêu "${goal.name}" — ${parsed.data.targetAmount.toLocaleString("vi-VN")} ₫`,
+  });
+
   return NextResponse.json({ id: goal.id });
 }
+

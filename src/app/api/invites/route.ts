@@ -3,6 +3,7 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { Role } from "@prisma/client";
+import { logActivity } from "@/lib/activity-log";
 
 const schema = z.object({
   role: z.enum(["ADMIN", "MEMBER"]).default("MEMBER"),
@@ -36,6 +37,16 @@ export async function POST(req: Request) {
 
   const invite = await prisma.invite.create({
     data: { familyId: session.user.familyId, code, role, expiresAt },
+  });
+
+  await logActivity({
+    familyId: session.user.familyId,
+    actorId: session.user.id,
+    actorName: session.user.name || session.user.email,
+    action: "INVITE",
+    entity: "invite",
+    entityId: invite.id,
+    summary: `Tạo mã mời ${invite.code} (vai trò ${role})`,
   });
 
   return NextResponse.json({ code: invite.code, expiresAt: invite.expiresAt });

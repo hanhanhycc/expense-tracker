@@ -3,6 +3,7 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { Role } from "@prisma/client";
+import { logActivity } from "@/lib/activity-log";
 
 const patchSchema = z.object({
   role: z.enum(["ADMIN", "MEMBER"]),
@@ -22,7 +23,10 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     return NextResponse.json({ error: "Dữ liệu không hợp lệ" }, { status: 400 });
   }
 
-  const target = await prisma.familyMember.findFirst({ where: { id, familyId: session.user.familyId } });
+  const target = await prisma.familyMember.findFirst({
+    where: { id, familyId: session.user.familyId },
+    include: { user: { select: { name: true } } },
+  });
   if (!target) return NextResponse.json({ error: "Không tìm thấy" }, { status: 404 });
   if (target.role === "OWNER") {
     return NextResponse.json({ error: "Không thể đổi vai trò của chủ gia đình" }, { status: 400 });
@@ -36,6 +40,19 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     data: { role: parsed.data.role as Role },
     select: { id: true, role: true },
   });
+
+  if (target.role !== parsed.data.role) {
+    await logActivity({
+      familyId: session.user.familyId,
+      actorId: session.user.id,
+      actorName: session.user.name || session.user.email,
+      action: "ROLE_CHANGE",
+      entity: "member",
+      entityId: id,
+      summary: `Đổi vai trò ${target.user.name}: ${target.role} → ${parsed.data.role}`,
+    });
+  }
+
   return NextResponse.json(updated);
 }
 
@@ -48,11 +65,25 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   if (id === session.user.memberId) {
     return NextResponse.json({ error: "Không thể xoá chính mình" }, { status: 400 });
   }
-  const target = await prisma.familyMember.findFirst({ where: { id, familyId: session.user.familyId } });
+  const target = await prisma.familyMember.findFirst({
+    where: { id, familyId: session.user.familyId },
+    include: { user: { select: { name: true } } },
+  });
   if (!target) return NextResponse.json({ error: "Không tìm thấy" }, { status: 404 });
   if (target.role === "OWNER") return NextResponse.json({ error: "Không thể xoá chủ gia đình" }, { status: 400 });
 
   await prisma.familyMember.delete({ where: { id } });
+
+  await logActivity({
+    familyId: session.user.familyId,
+    actorId: session.user.id,
+    actorName: session.user.name || session.user.email,
+    action: "DELETE",
+    entity: "member",
+    entityId: id,
+    summary: `Xoá thành viên ${target.user.name} (${target.role})`,
+  });
+
   return NextResponse.json({ ok: true });
 }
 
