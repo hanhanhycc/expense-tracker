@@ -48,8 +48,11 @@ function LoginForm() {
 export default function LoginPage() {
   return (
     <div className="card">
-      <h1 className="text-2xl font-bold mb-1">Đăng nhập</h1>
-      <p className="text-gray-500 text-sm mb-5">Quản lý thu chi gia đình</p>
+      <div className="flex flex-col items-center mb-4">
+        <img src="/logo.svg" alt="Saving Money" className="h-16 w-16 mb-2" />
+        <h1 className="text-2xl font-bold">Saving Money</h1>
+        <p className="text-gray-500 text-sm">Quản lý thu chi gia đình</p>
+      </div>
       <Suspense fallback={<div className="text-sm text-gray-500">Đang tải...</div>}>
         <LoginForm />
       </Suspense>

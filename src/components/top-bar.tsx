@@ -18,8 +18,8 @@ export function TopBar() {
     <header className="sticky top-0 z-20 bg-white/80 backdrop-blur border-b">
       <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
         <Link href="/dashboard" className="flex items-center gap-2 font-bold text-primary">
-          <span className="text-xl">💰</span>
-          <span>Thu Chi</span>
+          <img src="/logo.svg" alt="Saving Money" className="h-7 w-7" />
+          <span>Saving Money</span>
         </Link>
 
         <nav className="hidden desktop:flex items-center gap-2 text-sm">

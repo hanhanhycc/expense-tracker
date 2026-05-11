@@ -2,23 +2,26 @@ import type { Metadata, Viewport } from "next";
 import "@/styles/globals.css";
 
 export const metadata: Metadata = {
-  title: "Thu Chi Gia Đình",
+  title: "Saving Money",
   description: "Ứng dụng quản lý thu chi & tiết kiệm cho gia đình",
-  applicationName: "Thu Chi",
+  applicationName: "Saving Money",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Thu Chi",
+    title: "Saving Money",
   },
   manifest: "/manifest.webmanifest",
   icons: {
-    icon: "/icons/icon-192.png",
+    icon: [
+      { url: "/logo.svg", type: "image/svg+xml" },
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+    ],
     apple: "/icons/icon-192.png",
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#2563eb",
+  themeColor: "#EF5A5A",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,

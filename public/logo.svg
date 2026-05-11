@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none" stroke="#EF5A5A" stroke-width="8" stroke-linecap="round" stroke-linejoin="round">
+  <!-- coins / bubbles -->
+  <circle cx="78" cy="40" r="10" />
+  <circle cx="105" cy="32" r="6" />
+  <!-- pig body -->
+  <path d="M55 95 C55 75, 80 60, 105 60 C140 60, 165 78, 165 100 C165 115, 158 128, 145 137 L150 158 L132 158 L128 148 C120 150, 112 151, 105 151 C97 151, 90 150, 84 148 L80 158 L62 158 L66 138 C58 132, 55 120, 55 110 Z" />
+  <!-- snout -->
+  <ellipse cx="55" cy="105" rx="10" ry="12" />
+  <circle cx="52" cy="100" r="2" fill="#EF5A5A" />
+  <circle cx="52" cy="110" r="2" fill="#EF5A5A" />
+  <!-- eye -->
+  <circle cx="80" cy="92" r="3.5" fill="#EF5A5A" />
+  <!-- ear -->
+  <path d="M125 65 L135 55 L140 70" />
+  <!-- dollar sign -->
+  <path d="M110 80 L110 130 M118 88 C118 84, 114 82, 110 82 C106 82, 102 84, 102 88 C102 96, 118 94, 118 102 C118 106, 114 108, 110 108 C106 108, 102 106, 102 102" stroke-width="6" />
+  <!-- coin slot -->
+  <path d="M100 60 L120 60" stroke-width="4" />
+</svg>
