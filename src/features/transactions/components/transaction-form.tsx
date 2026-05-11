@@ -216,13 +216,12 @@ export function TransactionForm({ initial, currentMemberId }: { initial?: Transa
           </div>
         ) : (
           <label className="flex flex-col items-center justify-center gap-1 px-4 py-6 rounded-2xl border-2 border-dashed border-rose-200 bg-rose-50/40 text-sm text-gray-600 cursor-pointer hover:bg-rose-50">
-            <span className="text-2xl">📷</span>
-            <span>Chụp / chọn ảnh bill</span>
+            <span className="text-2xl">�️</span>
+            <span>Chọn ảnh bill từ thư viện</span>
             <span className="text-[11px] text-gray-400">JPG/PNG/WEBP/HEIC, tối đa 8MB</span>
             <input
               type="file"
               accept="image/*"
-              capture="environment"
               className="hidden"
               onChange={(e) => pickReceipt(e.target.files?.[0] ?? null)}
             />
