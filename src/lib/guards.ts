@@ -1,12 +1,13 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import type { Session as NextAuthSession } from "next-auth";
 
-export type Session = NonNullable<Awaited<ReturnType<typeof auth>>>;
+export type Session = NextAuthSession;
 
 export async function requireAuth(): Promise<Session> {
-  const session = await auth();
+  const session = (await auth()) as Session | null;
   if (!session?.user?.familyId) redirect("/login");
-  return session as Session;
+  return session;
 }
 
 export async function requireAdmin(): Promise<Session> {
