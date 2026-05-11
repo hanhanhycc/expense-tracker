@@ -8,6 +8,7 @@ import { useToast } from "@/components/toast";
 import { SkeletonList } from "@/components/skeleton";
 import { PullToRefresh } from "@/components/pull-to-refresh";
 import { haptic } from "@/lib/haptic";
+import { SwipeActions } from "@/components/swipe-actions";
 
 type Tx = {
   id: string;
@@ -220,51 +221,66 @@ export function HistoryClient({ currentMemberId }: { currentMemberId: string }) 
           <p className="p-6 text-center text-gray-500 text-sm">Không có giao dịch nào.</p>
         ) : (
           <ul className="divide-y">
-            {items.map((t) => (
-              <li key={t.id} className="p-3 flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full flex items-center justify-center text-lg" style={{ background: (t.category.color || "#6b7280") + "22" }}>
-                  {t.category.icon || "📦"}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">
-                    {t.category.name}
-                    {t.visibility === "SHARED" && <span className="ml-2 chip bg-primary/10 text-primary">Chung</span>}
-                    {t.receiptPath && (
-                      <button
-                        type="button"
-                        onClick={() => setViewingReceipt(t)}
-                        className="ml-2 chip bg-rose-50 text-primary border border-rose-100 hover:bg-rose-100"
-                        title="Xem ảnh bill"
-                      >📷</button>
-                    )}
-                  </p>
-                  <p className="text-xs text-gray-500 truncate">
-                    {formatDate(t.date)} · {t.paidBy.user.name}
-                    {t.note ? ` · ${t.note}` : ""}
-                  </p>
-                  {t.shares.length > 0 && (
-                    <p className="text-xs text-gray-400 truncate mt-0.5">
-                      {t.shares.map((s) => `${s.member.user.name}: ${formatVND(s.amount)}`).join(" • ")}
+            {items.map((t) => {
+              const isOwner = t.createdById === currentMemberId;
+              const row = (
+                <div className="p-3 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center text-lg shrink-0" style={{ background: (t.category.color || "#6b7280") + "22" }}>
+                    {t.category.icon || "📦"}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">
+                      {t.category.name}
+                      {t.visibility === "SHARED" && <span className="ml-2 chip bg-primary/10 text-primary">Chung</span>}
+                      {t.receiptPath && (
+                        <button
+                          type="button"
+                          onClick={() => setViewingReceipt(t)}
+                          className="ml-2 chip bg-rose-50 text-primary border border-rose-100 hover:bg-rose-100"
+                          title="Xem ảnh bill"
+                        >📷</button>
+                      )}
                     </p>
-                  )}
-                </div>
-                <div className="text-right">
-                  <p className={t.type === "INCOME" ? "text-success font-semibold" : "text-danger font-semibold"}>
-                    {t.type === "INCOME" ? "+" : "-"}{formatVND(t.amount)}
-                  </p>
-                  <div className="flex gap-2 justify-end mt-1 text-xs">
-                    {t.createdById === currentMemberId ? (
-                      <>
-                        <button onClick={() => setEditing(t)} className="text-primary">Sửa</button>
-                        <button onClick={() => onDelete(t.id)} className="text-danger">Xoá</button>
-                      </>
-                    ) : (
-                      <span className="text-gray-400">Của {t.paidBy.user.name}</span>
+                    <p className="text-xs text-gray-500 truncate">
+                      {formatDate(t.date)} · {t.paidBy.user.name}
+                      {t.note ? ` · ${t.note}` : ""}
+                    </p>
+                    {t.shares.length > 0 && (
+                      <p className="text-xs text-gray-400 truncate mt-0.5">
+                        {t.shares.map((s) => `${s.member.user.name}: ${formatVND(s.amount)}`).join(" • ")}
+                      </p>
+                    )}
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className={t.type === "INCOME" ? "text-success font-semibold" : "text-danger font-semibold"}>
+                      {t.type === "INCOME" ? "+" : "-"}{formatVND(t.amount)}
+                    </p>
+                    {!isOwner && (
+                      <p className="text-[11px] text-gray-400 mt-0.5">Của {t.paidBy.user.name}</p>
+                    )}
+                    {isOwner && (
+                      <p className="text-[11px] text-gray-300 mt-0.5 hidden md:block">← Vuốt để sửa/xoá</p>
                     )}
                   </div>
                 </div>
-              </li>
-            ))}
+              );
+              return (
+                <li key={t.id}>
+                  {isOwner ? (
+                    <SwipeActions
+                      rightActions={[
+                        { label: "Sửa", icon: "✏️", color: "primary", onClick: () => { haptic("selection"); setEditing(t); } },
+                        { label: "Xoá", icon: "🗑", color: "danger", onClick: () => onDelete(t.id) },
+                      ]}
+                    >
+                      {row}
+                    </SwipeActions>
+                  ) : (
+                    row
+                  )}
+                </li>
+              );
+            })}
           </ul>
         )}
         {!loading && hasMore && (
