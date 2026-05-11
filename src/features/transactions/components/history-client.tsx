@@ -5,6 +5,9 @@ import { formatVND } from "@/lib/money";
 import { formatDate } from "@/lib/date";
 import { TransactionForm, type TransactionFormInitial } from "@/features/transactions/components/transaction-form";
 import { useToast } from "@/components/toast";
+import { SkeletonList } from "@/components/skeleton";
+import { PullToRefresh } from "@/components/pull-to-refresh";
+import { haptic } from "@/lib/haptic";
 
 type Tx = {
   id: string;
@@ -30,6 +33,10 @@ export function HistoryClient({ currentMemberId }: { currentMemberId: string }) 
   const [cats, setCats] = useState<Cat[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [total, setTotal] = useState(0);
   const [editing, setEditing] = useState<Tx | null>(null);
   const [viewingReceipt, setViewingReceipt] = useState<Tx | null>(null);
   const toast = useToast();
@@ -38,14 +45,22 @@ export function HistoryClient({ currentMemberId }: { currentMemberId: string }) 
   const [filter, setFilter] = useState(initialFilter);
   const [applied, setApplied] = useState(initialFilter);
 
-  async function load() {
-    setLoading(true);
+  const PAGE_SIZE = 50;
+
+  async function load(reset = true, nextPage = 1) {
+    if (reset) setLoading(true); else setLoadingMore(true);
     const params = new URLSearchParams();
     Object.entries(applied).forEach(([k, v]) => { if (v) params.set(k, v); });
+    params.set("page", String(nextPage));
+    params.set("limit", String(PAGE_SIZE));
     const res = await fetch("/api/transactions?" + params.toString());
     const data = await res.json();
-    setItems(data.items || []);
-    setLoading(false);
+    const newItems: Tx[] = data.items || [];
+    setItems((prev) => reset ? newItems : [...prev, ...newItems]);
+    setHasMore(!!data.hasMore);
+    setTotal(data.total ?? newItems.length);
+    setPage(nextPage);
+    if (reset) setLoading(false); else setLoadingMore(false);
   }
 
   useEffect(() => {
@@ -53,7 +68,7 @@ export function HistoryClient({ currentMemberId }: { currentMemberId: string }) 
     fetch("/api/members").then((r) => r.json()).then((d) => setMembers(d.items || []));
   }, []);
 
-  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [applied]);
+  useEffect(() => { load(true, 1); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [applied]);
 
   async function onDelete(id: string) {
     if (!confirm("Xoá giao dịch này?")) return;
@@ -63,8 +78,9 @@ export function HistoryClient({ currentMemberId }: { currentMemberId: string }) 
       toast.error(d.error || "Xoá thất bại");
       return;
     }
+    haptic("medium");
     toast.success("Đã xoá giao dịch");
-    load();
+    load(true, 1);
   }
 
   function exportUrl() {
@@ -98,6 +114,7 @@ export function HistoryClient({ currentMemberId }: { currentMemberId: string }) 
   }
 
   return (
+    <PullToRefresh onRefresh={() => load(true, 1)}>
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold">Lịch sử giao dịch</h1>
@@ -198,7 +215,7 @@ export function HistoryClient({ currentMemberId }: { currentMemberId: string }) 
 
       <div className="card !p-0">
         {loading ? (
-          <p className="p-6 text-center text-gray-500 text-sm">Đang tải...</p>
+          <SkeletonList rows={6} />
         ) : items.length === 0 ? (
           <p className="p-6 text-center text-gray-500 text-sm">Không có giao dịch nào.</p>
         ) : (
@@ -250,6 +267,23 @@ export function HistoryClient({ currentMemberId }: { currentMemberId: string }) 
             ))}
           </ul>
         )}
+        {!loading && hasMore && (
+          <div className="p-3 border-t flex items-center justify-center">
+            <button
+              type="button"
+              disabled={loadingMore}
+              onClick={() => load(false, page + 1)}
+              className="btn-ghost text-sm"
+            >
+              {loadingMore ? "Đang tải..." : `Xem thêm (còn ${total - items.length})`}
+            </button>
+          </div>
+        )}
+        {!loading && items.length > 0 && (
+          <div className="px-3 pb-3 text-center text-[11px] text-gray-400">
+            Hiển thị {items.length}/{total} giao dịch
+          </div>
+        )}
       </div>
 
       {viewingReceipt && (
@@ -274,5 +308,6 @@ export function HistoryClient({ currentMemberId }: { currentMemberId: string }) 
         </div>
       )}
     </div>
+    </PullToRefresh>
   );
 }

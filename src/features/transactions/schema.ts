@@ -28,5 +28,7 @@ export const transactionFilterSchema = z.object({
   memberId: z.string().optional(),
   visibility: z.enum(["PERSONAL", "SHARED", "ALL"]).optional(),
   q: z.string().optional(),
+  page: z.coerce.number().int().min(1).optional(),
+  limit: z.coerce.number().int().min(1).max(200).optional(),
 });
 export type TransactionFilter = z.infer<typeof transactionFilterSchema>;

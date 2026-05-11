@@ -11,7 +11,8 @@ export async function GET(req: Request) {
   const url = new URL(req.url);
   const parsed = transactionFilterSchema.safeParse(Object.fromEntries(url.searchParams));
   const filter = parsed.success ? parsed.data : {};
-  const items = await listTransactions(session.user.familyId, session.user.memberId, filter);
+  const result = await listTransactions(session.user.familyId, session.user.memberId, { ...filter, limit: 10000 });
+  const items = result.items;
 
   const headers = ["Ngày", "Loại", "Số tiền", "Danh mục", "Người trả", "Người tạo", "Hiển thị", "Cách chia", "Ghi chú", "Người chia"];
   const rows = items.map((t) => [

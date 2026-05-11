@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { haptic } from "@/lib/haptic";
 
 const LOTTIE_EMBED = "https://lottie.host/embed/12b5a432-a459-4901-b123-7f684176f7a6/uArLNKNyoB.lottie";
 
@@ -11,6 +12,7 @@ export function fireConfetti(durationMs = 2800) {
   if (typeof window === "undefined") return;
   activeKey += 1;
   const myKey = activeKey;
+  haptic("success");
   listeners.forEach((l) => l(true, myKey));
   window.setTimeout(() => {
     if (myKey === activeKey) listeners.forEach((l) => l(false, myKey));

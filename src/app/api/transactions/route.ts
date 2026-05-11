@@ -11,7 +11,7 @@ export async function GET(req: Request) {
   const parsed = transactionFilterSchema.safeParse(Object.fromEntries(url.searchParams));
   const filter = parsed.success ? parsed.data : {};
   const items = await listTransactions(session.user.familyId, session.user.memberId, filter);
-  return NextResponse.json({ items });
+  return NextResponse.json(items);
 }
 
 export async function POST(req: Request) {

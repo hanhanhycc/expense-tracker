@@ -48,17 +48,26 @@ export async function listTransactions(familyId: string, memberId: string, filte
     where.note = { contains: filter.q, mode: "insensitive" };
   }
 
-  return prisma.transaction.findMany({
-    where,
-    include: {
-      category: true,
-      paidBy: { include: { user: true } },
-      createdBy: { include: { user: true } },
-      shares: { include: { member: { include: { user: true } } } },
-    },
-    orderBy: [{ date: "desc" }, { createdAt: "desc" }],
-    take: 500,
-  });
+  const limit = filter.limit ?? 50;
+  const page = filter.page ?? 1;
+  const skip = (page - 1) * limit;
+
+  const [items, total] = await Promise.all([
+    prisma.transaction.findMany({
+      where,
+      include: {
+        category: true,
+        paidBy: { include: { user: true } },
+        createdBy: { include: { user: true } },
+        shares: { include: { member: { include: { user: true } } } },
+      },
+      orderBy: [{ date: "desc" }, { createdAt: "desc" }],
+      skip,
+      take: limit,
+    }),
+    prisma.transaction.count({ where }),
+  ]);
+  return { items, total, page, limit, hasMore: skip + items.length < total };
 }
 
 export async function createTransaction(familyId: string, createdById: string, input: TransactionInput) {

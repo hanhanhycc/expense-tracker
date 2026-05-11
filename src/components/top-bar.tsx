@@ -47,6 +47,7 @@ export function TopBar() {
             >
               <div className="px-3 py-2 border-b text-gray-500 text-xs">{data?.user?.email}</div>
               <Link href="/settings" className="block px-3 py-2 hover:bg-gray-50" onClick={() => setOpen(false)}>⚙️ Cài đặt</Link>
+              <Link href="/budgets" className="block px-3 py-2 hover:bg-gray-50" onClick={() => setOpen(false)}>💰 Ngân sách</Link>
               <Link href="/settings/profile" className="block px-3 py-2 hover:bg-gray-50" onClick={() => setOpen(false)}>👤 Thông tin cá nhân</Link>
               <Link href="/settings/members" className="block px-3 py-2 hover:bg-gray-50" onClick={() => setOpen(false)}>👥 Thành viên</Link>
               <Link href="/settings/categories" className="block px-3 py-2 hover:bg-gray-50" onClick={() => setOpen(false)}>🏷 Danh mục</Link>

@@ -1,6 +1,7 @@
 import { requireAuth } from "@/lib/guards";
 import { prisma } from "@/lib/db";
 import { monthSummary } from "@/features/transactions/server/service";
+import { topBudgets } from "@/features/budgets/server/service";
 import { endOfMonth, startOfMonth, formatDate } from "@/lib/date";
 import { formatVND } from "@/lib/money";
 import Link from "next/link";
@@ -12,8 +13,9 @@ export default async function DashboardPage() {
   const familyId = session.user.familyId;
   const from = startOfMonth();
   const to = endOfMonth();
+  const monthStr = `${from.getFullYear()}-${String(from.getMonth() + 1).padStart(2, "0")}`;
 
-  const [summary, recent, goals] = await Promise.all([
+  const [summary, recent, goals, budgets] = await Promise.all([
     monthSummary(familyId, session.user.memberId, from, to),
     prisma.transaction.findMany({
       where: {
@@ -42,6 +44,7 @@ export default async function DashboardPage() {
       include: { contributions: true },
       take: 5,
     }),
+    topBudgets(familyId, monthStr, 4),
   ]);
 
   return (
@@ -76,6 +79,47 @@ export default async function DashboardPage() {
         <Stat label="Chi cá nhân" value={summary.personalExpense} icon="👤" />
         <Stat label="Chi chung" value={summary.sharedExpense} icon="👥" />
       </div>
+
+      {budgets.length > 0 && (
+        <div className="card">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-bold text-lg">Ngân sách tháng này</h2>
+            <Link href="/budgets" className="text-sm text-primary-700 font-semibold">Xem →</Link>
+          </div>
+          <ul className="space-y-3">
+            {budgets.map((b) => {
+              const over = b.percent > 100;
+              return (
+                <li key={b.categoryId}>
+                  <div className="flex justify-between text-sm mb-1.5">
+                    <span className="font-semibold flex items-center gap-1.5">
+                      <span>{b.categoryIcon || "📦"}</span>
+                      {b.categoryName}
+                    </span>
+                    <span className={`font-bold tabular-nums ${over ? "text-danger" : "text-gray-700"}`}>
+                      {b.percent.toFixed(0)}%
+                    </span>
+                  </div>
+                  <div className="h-2 bg-rose-100 rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all"
+                      style={{
+                        width: `${Math.min(100, b.percent)}%`,
+                        background: over
+                          ? "linear-gradient(90deg,#FCA5A5,#DC2626)"
+                          : b.percent > 80
+                            ? "linear-gradient(90deg,#FBBF24,#F59E0B)"
+                            : "linear-gradient(90deg,#F783A8,#E64980)",
+                      }}
+                    />
+                  </div>
+                  <p className="text-[11px] text-gray-500 mt-1 tabular-nums">{formatVND(b.spent)} / {formatVND(b.amount)}</p>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
 
       <div className="card">
         <h2 className="font-bold text-lg mb-3">Top danh mục chi</h2>

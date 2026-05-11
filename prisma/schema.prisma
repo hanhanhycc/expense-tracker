@@ -136,10 +136,31 @@ model Category {
 
   family       Family        @relation(fields: [familyId], references: [id], onDelete: Cascade)
   transactions Transaction[]
+  budgets      Budget[]
 
   @@index([familyId])
   @@index([familyId, kind])
   @@map("categories")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Budgets — ngân sách theo category, theo tháng
+// ─────────────────────────────────────────────────────────────
+
+model Budget {
+  id         String   @id @default(cuid())
+  familyId   String
+  categoryId String
+  month      DateTime @db.Date // luôn ngày đầu tháng UTC, ví dụ 2026-05-01
+  amount     Decimal  @db.Decimal(18, 2)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([familyId, categoryId, month])
+  @@index([familyId, month])
+  @@map("budgets")
 }
 
 // ─────────────────────────────────────────────────────────────

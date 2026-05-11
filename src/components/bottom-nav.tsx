@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import clsx from "clsx";
+import { haptic } from "@/lib/haptic";
 
 const left = [
   { href: "/dashboard", label: "Tổng quan", icon: "🏠" },
@@ -28,6 +29,7 @@ export function BottomNav() {
         <Link
           href="/add"
           aria-label="Thêm giao dịch"
+          onClick={() => haptic("medium")}
           className="mx-2 -mt-7 w-14 h-14 rounded-full flex items-center justify-center text-white text-3xl font-bold shadow-[0_10px_28px_rgba(231,72,128,0.55)] shrink-0"
           style={{ background: "linear-gradient(135deg,#F783A8,#E64980)" }}
         >
