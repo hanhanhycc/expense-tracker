@@ -114,28 +114,27 @@ export function SavingsClient({
           );
         }
         return (
-          <ul className="space-y-3">
+          <ul className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {filtered.map((g) => (
               <li key={g.id}>
                 <button onClick={() => setOpenId(g.id)} className="w-full text-left card hover:shadow-md transition">
-                  <div className="flex justify-between items-start mb-2">
-                    <div>
-                      <p className="font-semibold">
-                        {g.visibility === "PERSONAL" ? "🔒" : "🤝"} {g.name}{" "}
-                        {g.status !== "ACTIVE" && (
-                          <span className="ml-1 chip bg-gray-100 text-gray-600 text-[10px]">{g.status}</span>
-                        )}
+                  <div className="flex items-center gap-4">
+                    <DonutProgress percent={g.progress} size={84} stroke={10} />
+                    <div className="min-w-0 flex-1">
+                      <p className="font-bold truncate">
+                        <span className="mr-1">{g.visibility === "PERSONAL" ? "🔒" : "🤝"}</span>
+                        {g.name}
                       </p>
-                      {g.description && <p className="text-xs text-gray-500 mt-0.5">{g.description}</p>}
+                      {g.description && <p className="text-xs text-gray-500 mt-0.5 truncate">{g.description}</p>}
+                      <p className="text-sm mt-2">
+                        <span className="font-bold text-gray-900">{formatVND(g.totalContributed)}</span>
+                        <span className="text-gray-400"> / {formatVND(g.targetAmount)}</span>
+                      </p>
+                      {g.status !== "ACTIVE" && (
+                        <span className="mt-1 inline-block chip bg-gray-100 text-gray-600 text-[10px]">{g.status}</span>
+                      )}
                     </div>
-                    <span className="chip bg-primary/10 text-primary">{g.progress.toFixed(1)}%</span>
                   </div>
-                  <div className="h-2 bg-gray-100 rounded-full overflow-hidden mb-2">
-                    <div className="h-full bg-primary" style={{ width: `${g.progress}%` }} />
-                  </div>
-                  <p className="text-xs text-gray-600">
-                    <span className="font-medium">{formatVND(g.totalContributed)}</span> / {formatVND(g.targetAmount)}
-                  </p>
                 </button>
               </li>
             ))}
@@ -508,15 +507,17 @@ function GoalDetailView({
               </div>
             )}
           </div>
-          <div className="mt-4">
-            <div className="flex justify-between text-sm mb-1">
-              <span className="font-medium">{formatVND(goal.totalContributed)} / {formatVND(goal.targetAmount)}</span>
-              <span>{goal.progress.toFixed(1)}%</span>
-            </div>
-            <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
-              <div className="h-full bg-primary" style={{ width: `${goal.progress}%` }} />
-            </div>
-            <p className="text-xs text-gray-500 mt-2">Còn lại: {formatVND(Number(goal.targetAmount) - Number(goal.totalContributed))}</p>
+          <div className="mt-5 flex items-center justify-center">
+            <DonutProgress percent={goal.progress} size={180} stroke={16} showLabel />
+          </div>
+          <div className="mt-4 text-center">
+            <p className="text-sm">
+              <span className="font-bold text-gray-900">{formatVND(goal.totalContributed)}</span>
+              <span className="text-gray-400"> / {formatVND(goal.targetAmount)}</span>
+            </p>
+            <p className="text-xs text-gray-500 mt-1">
+              Còn lại: <span className="font-semibold text-primary-700">{formatVND(Number(goal.targetAmount) - Number(goal.totalContributed))}</span>
+            </p>
           </div>
         </div>
       )}
@@ -613,3 +614,30 @@ function GoalDetailView({
   );
 }
 
+
+function DonutProgress({ percent, size = 84, stroke = 10, showLabel = true }: { percent: number; size?: number; stroke?: number; showLabel?: boolean }) {
+  const p = Math.max(0, Math.min(100, percent));
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  const dash = (p / 100) * c;
+  const gradId = `grad-${size}`;
+  return (
+    <div className="relative shrink-0" style={{ width: size, height: size }}>
+      <svg width={size} height={size} className="-rotate-90">
+        <defs>
+          <linearGradient id={gradId} x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor="#F783A8" />
+            <stop offset="100%" stopColor="#E64980" />
+          </linearGradient>
+        </defs>
+        <circle cx={size / 2} cy={size / 2} r={r} stroke="#FFE4EC" strokeWidth={stroke} fill="none" />
+        <circle cx={size / 2} cy={size / 2} r={r} stroke={`url(#${gradId})`} strokeWidth={stroke} strokeLinecap="round" fill="none" strokeDasharray={`${dash} ${c - dash}`} />
+      </svg>
+      {showLabel && (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <span className="font-extrabold text-primary-700" style={{ fontSize: size * 0.22 }}>{p.toFixed(0)}%</span>
+        </div>
+      )}
+    </div>
+  );
+}

@@ -8,8 +8,9 @@ type BeforeInstallPromptEvent = Event & {
 };
 
 const DISMISS_KEY = "sm_install_dismissed_at";
-const NEVER_KEY = "sm_install_never";
+const NEVER_KEY = "sm_install_never_at";
 const DISMISS_DAYS = 7;
+const NEVER_DAYS = 10;
 
 function isStandalone(): boolean {
   if (typeof window === "undefined") return false;
@@ -43,7 +44,13 @@ function isIOSSafari(): boolean {
 
 function dismissedRecently(): boolean {
   try {
-    if (localStorage.getItem(NEVER_KEY) === "1") return true;
+    const never = localStorage.getItem(NEVER_KEY);
+    if (never) {
+      const ts = Number(never);
+      if (ts && Date.now() - ts < NEVER_DAYS * 24 * 60 * 60 * 1000) return true;
+      // Hết hạn → xoá
+      localStorage.removeItem(NEVER_KEY);
+    }
     const v = localStorage.getItem(DISMISS_KEY);
     if (!v) return false;
     const ts = Number(v);
@@ -101,7 +108,7 @@ export function InstallPrompt() {
 
   function never() {
     try {
-      localStorage.setItem(NEVER_KEY, "1");
+      localStorage.setItem(NEVER_KEY, String(Date.now()));
     } catch {}
     setShow(false);
     setIosOpen(false);
@@ -140,7 +147,7 @@ export function InstallPrompt() {
                 Để sau
               </button>
               <button onClick={never} className="!py-1.5 !px-3 text-xs text-gray-400 hover:text-gray-600 underline">
-                Không nhắc nữa
+                Không nhắc trong 10 ngày
               </button>
             </div>
           </div>
