@@ -16,6 +16,7 @@ type Tx = {
   splitType: "NONE" | "EQUAL" | "CUSTOM";
   paidById: string;
   categoryId: string;
+  receiptPath: string | null;
   category: { name: string; icon: string | null; color: string | null };
   paidBy: { id: string; user: { name: string } };
   shares: { memberId: string; amount: string; member: { user: { name: string } } }[];
@@ -29,6 +30,7 @@ export function HistoryClient({ currentMemberId }: { currentMemberId: string }) 
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Tx | null>(null);
+  const [viewingReceipt, setViewingReceipt] = useState<Tx | null>(null);
   const toast = useToast();
 
   const [filter, setFilter] = useState({ from: "", to: "", categoryId: "", memberId: "", visibility: "ALL", q: "" });
@@ -81,6 +83,7 @@ export function HistoryClient({ currentMemberId }: { currentMemberId: string }) 
       splitType: editing.splitType,
       sharedMemberIds: editing.shares.map((s) => s.memberId),
       customShares: editing.shares.map((s) => ({ memberId: s.memberId, amount: Number(s.amount) })),
+      hasReceipt: !!editing.receiptPath,
     };
     return (
       <div className="max-w-md mx-auto">
@@ -151,6 +154,14 @@ export function HistoryClient({ currentMemberId }: { currentMemberId: string }) 
                   <p className="text-sm font-medium truncate">
                     {t.category.name}
                     {t.visibility === "SHARED" && <span className="ml-2 chip bg-primary/10 text-primary">Chung</span>}
+                    {t.receiptPath && (
+                      <button
+                        type="button"
+                        onClick={() => setViewingReceipt(t)}
+                        className="ml-2 chip bg-rose-50 text-primary border border-rose-100 hover:bg-rose-100"
+                        title="Xem ảnh bill"
+                      >📷</button>
+                    )}
                   </p>
                   <p className="text-xs text-gray-500 truncate">
                     {formatDate(t.date)} · {t.paidBy.user.name}
@@ -176,6 +187,28 @@ export function HistoryClient({ currentMemberId }: { currentMemberId: string }) 
           </ul>
         )}
       </div>
+
+      {viewingReceipt && (
+        <div
+          className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4"
+          onClick={() => setViewingReceipt(null)}
+        >
+          <div className="relative max-w-3xl max-h-full" onClick={(e) => e.stopPropagation()}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={`/api/transactions/${viewingReceipt.id}/receipt`}
+              alt="bill"
+              className="max-h-[85vh] max-w-full rounded-2xl shadow-2xl"
+            />
+            <button
+              type="button"
+              onClick={() => setViewingReceipt(null)}
+              className="absolute -top-3 -right-3 w-9 h-9 rounded-full bg-white text-gray-800 shadow-lg"
+              aria-label="Đóng"
+            >✕</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

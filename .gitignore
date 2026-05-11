@@ -39,6 +39,10 @@ Thumbs.db
 coverage/
 .nyc_output/
 
+# Local uploads (bill images)
+uploads/
+data/
+
 # Database
 *.sqlite
 *.sqlite3

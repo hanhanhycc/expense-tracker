@@ -21,6 +21,7 @@ export type TransactionFormInitial = {
   splitType?: "NONE" | "EQUAL" | "CUSTOM";
   sharedMemberIds?: string[];
   customShares?: { memberId: string; amount: number }[];
+  hasReceipt?: boolean;
 };
 
 export function TransactionForm({ initial, currentMemberId }: { initial?: TransactionFormInitial; currentMemberId: string }) {
@@ -43,6 +44,37 @@ export function TransactionForm({ initial, currentMemberId }: { initial?: Transa
   );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [receiptPreview, setReceiptPreview] = useState<string | null>(
+    initial?.id && initial?.hasReceipt ? `/api/transactions/${initial.id}/receipt` : null,
+  );
+  const [removeExistingReceipt, setRemoveExistingReceipt] = useState(false);
+
+  function pickReceipt(file: File | null) {
+    if (!file) {
+      setReceiptFile(null);
+      return;
+    }
+    if (!file.type.startsWith("image/")) {
+      toast.error("Chỉ chấp nhận ảnh");
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      toast.error("Ảnh vượt 8MB");
+      return;
+    }
+    setReceiptFile(file);
+    setRemoveExistingReceipt(false);
+    const url = URL.createObjectURL(file);
+    setReceiptPreview(url);
+  }
+
+  function clearReceipt() {
+    setReceiptFile(null);
+    setReceiptPreview(null);
+    setRemoveExistingReceipt(true);
+  }
 
   useEffect(() => {
     fetch("/api/categories").then((r) => r.json()).then((d) => setCategories(d.items || []));
@@ -87,6 +119,28 @@ export function TransactionForm({ initial, currentMemberId }: { initial?: Transa
       setLoading(false);
       return;
     }
+    const respJson = await res.json().catch(() => ({} as { id?: string }));
+    const txId = (initial?.id ?? respJson.id) as string | undefined;
+
+    // Receipt: upload moới hoặc xoá cũ
+    if (txId) {
+      try {
+        if (receiptFile) {
+          const fd = new FormData();
+          fd.append("file", receiptFile);
+          const r = await fetch(`/api/transactions/${txId}/receipt`, { method: "POST", body: fd });
+          if (!r.ok) {
+            const d = await r.json().catch(() => ({}));
+            toast.error(d.error || "Tải ảnh thất bại");
+          }
+        } else if (initial?.id && removeExistingReceipt) {
+          await fetch(`/api/transactions/${txId}/receipt`, { method: "DELETE" });
+        }
+      } catch {
+        toast.error("Tải ảnh thất bại");
+      }
+    }
+
     toast.success(initial?.id ? "Đã cập nhật giao dịch" : "Đã thêm giao dịch");
     router.push("/history");
     router.refresh();
@@ -145,6 +199,35 @@ export function TransactionForm({ initial, currentMemberId }: { initial?: Transa
       <div>
         <label className="label">Ghi chú</label>
         <input className="input" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Tuỳ chọn" />
+      </div>
+
+      <div>
+        <label className="label">Ảnh hoá đơn / bill (tuỳ chọn)</label>
+        {receiptPreview ? (
+          <div className="relative inline-block">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={receiptPreview} alt="bill" className="max-h-48 rounded-2xl border border-rose-100 shadow-sm" />
+            <button
+              type="button"
+              onClick={clearReceipt}
+              className="absolute -top-2 -right-2 w-7 h-7 rounded-full bg-white border border-rose-200 text-danger text-sm shadow"
+              aria-label="Xoá ảnh"
+            >✕</button>
+          </div>
+        ) : (
+          <label className="flex flex-col items-center justify-center gap-1 px-4 py-6 rounded-2xl border-2 border-dashed border-rose-200 bg-rose-50/40 text-sm text-gray-600 cursor-pointer hover:bg-rose-50">
+            <span className="text-2xl">📷</span>
+            <span>Chụp / chọn ảnh bill</span>
+            <span className="text-[11px] text-gray-400">JPG/PNG/WEBP/HEIC, tối đa 8MB</span>
+            <input
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={(e) => pickReceipt(e.target.files?.[0] ?? null)}
+            />
+          </label>
+        )}
       </div>
 
       <div className="card !p-3 space-y-3">

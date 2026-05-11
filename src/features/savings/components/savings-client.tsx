@@ -485,39 +485,68 @@ function GoalDetailView({
           onSaved={() => { setShowEdit(false); onChanged(); }}
         />
       ) : (
-        <div className="card">
+        <div className="rounded-3xl p-6 border border-rose-200 shadow-[0_12px_40px_rgba(231,72,128,0.18)] relative overflow-hidden"
+             style={{ background: "linear-gradient(135deg,#FFD9E5 0%,#FFC2D4 100%)" }}>
           <div className="flex justify-between items-start gap-3">
             <div className="min-w-0">
-              <h1 className="text-xl font-bold">
-                {goal.visibility === "PERSONAL" ? "🔒" : "🤝"} {goal.name}
-              </h1>
-              <p className="text-xs text-gray-500 mt-1">
-                {goal.visibility === "PERSONAL" ? "Mục tiêu cá nhân (chỉ bạn thấy)" : "Mục tiêu chung của gia đình"}
+              <h1 className="text-2xl font-extrabold tracking-tight text-gray-900 truncate">{goal.name}</h1>
+              <p className="text-xs text-gray-700/70 mt-1">
+                {goal.visibility === "PERSONAL" ? "🔒 Cá nhân" : "🤝 Chung gia đình"}
               </p>
-              {goal.description && <p className="text-sm text-gray-500 mt-1">{goal.description}</p>}
-              {goal.status !== "ACTIVE" && (
-                <span className="mt-2 inline-block chip bg-gray-100 text-gray-600 text-xs">{goal.status}</span>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="px-3 py-1 rounded-full bg-white/70 border border-white text-xs font-bold text-gray-900">
+                {formatVND(goal.targetAmount)}
+              </span>
+              {canManageGoal && (
+                <div className="flex flex-col gap-1">
+                  <button onClick={() => setShowEdit(true)} className="text-xs bg-white/80 rounded-full px-2 py-1">✏️</button>
+                  <button onClick={deleteGoal} className="text-xs bg-white/80 rounded-full px-2 py-1 text-danger">🗑</button>
+                </div>
               )}
             </div>
-            {canManageGoal && (
-              <div className="flex flex-col gap-1 shrink-0">
-                <button onClick={() => setShowEdit(true)} className="btn-ghost !py-1.5 !px-3 text-xs">✏️ Sửa</button>
-                <button onClick={deleteGoal} className="btn-ghost !py-1.5 !px-3 text-xs text-danger">🗑 Xoá</button>
-              </div>
-            )}
           </div>
-          <div className="mt-5 flex items-center justify-center">
-            <DonutProgress percent={goal.progress} size={180} stroke={16} showLabel />
+
+          <div className="relative mt-4 flex items-center justify-center" style={{ height: 260 }}>
+            <BigGoalRing percent={goal.progress} size={240} stroke={20} />
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <span className="text-5xl">🐷</span>
+            </div>
+            {(() => {
+              const remain = Number(goal.targetAmount) - Number(goal.totalContributed);
+              if (remain <= 0) return null;
+              return (
+                <div className="absolute top-2 right-6 w-20 h-20 rounded-full bg-primary text-white flex flex-col items-center justify-center shadow-lg">
+                  <span className="text-xs font-bold leading-none">{formatVND(remain)}</span>
+                  <span className="text-[10px] opacity-90 mt-0.5">Còn lại</span>
+                </div>
+              );
+            })()}
           </div>
-          <div className="mt-4 text-center">
-            <p className="text-sm">
-              <span className="font-bold text-gray-900">{formatVND(goal.totalContributed)}</span>
-              <span className="text-gray-400"> / {formatVND(goal.targetAmount)}</span>
-            </p>
-            <p className="text-xs text-gray-500 mt-1">
-              Còn lại: <span className="font-semibold text-primary-700">{formatVND(Number(goal.targetAmount) - Number(goal.totalContributed))}</span>
-            </p>
+
+          <div className="mt-2 flex items-center justify-between gap-3 px-2">
+            <div className="flex items-center gap-2 text-sm">
+              <span className="font-extrabold text-gray-900">{goal.progress.toFixed(0)}%</span>
+              <span className="text-gray-700">Đã tiết kiệm</span>
+            </div>
+            <div className="flex-1 h-px bg-white/70 mx-2" />
+            <div className="flex items-center gap-2 text-sm">
+              <span className="font-extrabold text-gray-900">{(100 - goal.progress).toFixed(0)}%</span>
+              <span className="text-gray-700">Còn lại</span>
+            </div>
           </div>
+
+          <div className="mt-3 text-center text-xs text-gray-700">
+            <span className="font-semibold text-gray-900">{formatVND(goal.totalContributed)}</span>
+            <span className="text-gray-600"> / {formatVND(goal.targetAmount)}</span>
+          </div>
+
+          {goal.description && <p className="text-xs text-gray-700/80 mt-2 text-center">{goal.description}</p>}
+          {goal.status !== "ACTIVE" && (
+            <div className="mt-2 text-center">
+              <span className="chip bg-white/80 text-gray-700 text-[10px]">{goal.status}</span>
+            </div>
+          )}
         </div>
       )}
 
@@ -638,5 +667,18 @@ function DonutProgress({ percent, size = 84, stroke = 10, showLabel = true }: { 
         </div>
       )}
     </div>
+  );
+}
+
+function BigGoalRing({ percent, size = 240, stroke = 20 }: { percent: number; size?: number; stroke?: number }) {
+  const p = Math.max(0, Math.min(100, percent));
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  const dash = (p / 100) * c;
+  return (
+    <svg width={size} height={size} className="-rotate-90 drop-shadow-sm">
+      <circle cx={size / 2} cy={size / 2} r={r} stroke="rgba(255,255,255,0.55)" strokeWidth={stroke} fill="none" />
+      <circle cx={size / 2} cy={size / 2} r={r} stroke="#ffffff" strokeWidth={stroke} strokeLinecap="round" fill="none" strokeDasharray={`${dash} ${c - dash}`} />
+    </svg>
   );
 }

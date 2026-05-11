@@ -29,6 +29,9 @@ services:
       DATABASE_URL: ${DATABASE_URL}
       AUTH_SECRET: ${AUTH_SECRET}
       AUTH_URL: ${AUTH_URL}
+      UPLOAD_DIR: /app/uploads
       NODE_ENV: production
+    volumes:
+      - ./data/uploads:/app/uploads
     ports:
       - "${APP_PORT:-3000}:3000"

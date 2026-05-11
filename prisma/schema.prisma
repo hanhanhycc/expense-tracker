@@ -158,6 +158,7 @@ model Transaction {
   paidById    String
   visibility  Visibility @default(PERSONAL)
   splitType   SplitType  @default(NONE)
+  receiptPath String?
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
   deletedAt   DateTime?

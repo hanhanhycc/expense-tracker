@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { splitEqual, sumMoney, toDecimal, validateSplitCustom } from "@/lib/money";
 import { Prisma, SplitType, Visibility } from "@prisma/client";
+import { deleteReceipt } from "@/lib/upload";
 import type { TransactionInput, TransactionFilter } from "./schema";
 
 export async function listTransactions(familyId: string, filter: TransactionFilter = {}) {
@@ -127,11 +128,15 @@ export async function updateTransaction(familyId: string, id: string, input: Tra
 }
 
 export async function softDeleteTransaction(familyId: string, id: string) {
-  const r = await prisma.transaction.updateMany({
-    where: { id, familyId, deletedAt: null },
-    data: { deletedAt: new Date() },
+  const tx = await prisma.transaction.findFirst({ where: { id, familyId, deletedAt: null }, select: { receiptPath: true } });
+  if (!tx) throw new Error("Không tìm thấy giao dịch");
+  if (tx.receiptPath) {
+    try { await deleteReceipt(tx.receiptPath); } catch { /* ignore */ }
+  }
+  await prisma.transaction.update({
+    where: { id },
+    data: { deletedAt: new Date(), receiptPath: null },
   });
-  if (r.count === 0) throw new Error("Không tìm thấy giao dịch");
 }
 
 export async function monthSummary(familyId: string, from: Date, to: Date) {
