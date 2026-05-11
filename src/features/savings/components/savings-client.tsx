@@ -521,19 +521,21 @@ function GoalDetailView({
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <span className="text-5xl">🐷</span>
             </div>
-            {(() => {
-              const remain = Number(goal.targetAmount) - Number(goal.totalContributed);
-              if (remain <= 0) return null;
-              return (
-                <div className="absolute top-1 right-1 sm:top-2 sm:right-2 max-w-[45%] rounded-2xl bg-primary text-white px-3 py-2 shadow-lg text-center">
-                  <p className="text-[10px] uppercase tracking-wider opacity-90 leading-none">Còn lại</p>
-                  <p className="text-sm font-extrabold mt-1 tabular-nums leading-none whitespace-nowrap">
-                    {formatVND(remain)}
-                  </p>
-                </div>
-              );
-            })()}
           </div>
+          {(() => {
+            const remain = Number(goal.targetAmount) - Number(goal.totalContributed);
+            if (remain <= 0) return null;
+            return (
+              <div className="mt-3 flex justify-center">
+                <div className="inline-flex items-center gap-2 rounded-full bg-primary text-white px-4 py-2 shadow-lg">
+                  <span className="text-[10px] uppercase tracking-wider opacity-90">Còn lại</span>
+                  <span className="text-sm font-extrabold tabular-nums whitespace-nowrap">
+                    {formatVND(remain)}
+                  </span>
+                </div>
+              </div>
+            );
+          })()}
 
           <div className="mt-2 flex items-center justify-between gap-3 px-2">
             <div className="flex items-center gap-2 text-sm">
