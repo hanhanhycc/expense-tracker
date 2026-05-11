@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { Prisma, GoalStatus } from "@prisma/client";
+import { Prisma, GoalStatus, Visibility } from "@prisma/client";
 import { sumMoney } from "@/lib/money";
 import { logActivity } from "@/lib/activity-log";
 
@@ -19,6 +19,11 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   });
   if (!g) return NextResponse.json({ error: "Không tìm thấy" }, { status: 404 });
 
+  // PERSONAL chỉ người tạo mới xem được
+  if (g.visibility === Visibility.PERSONAL && g.createdById !== session.user.memberId) {
+    return NextResponse.json({ error: "Không có quyền xem mục tiêu này" }, { status: 403 });
+  }
+
   const total = sumMoney(g.contributions.map((c) => c.amount.toString()));
   const byMember = new Map<string, number>();
   for (const c of g.contributions) {
@@ -30,6 +35,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     name: g.name,
     description: g.description,
     status: g.status,
+    visibility: g.visibility,
     createdById: g.createdById,
     targetAmount: g.targetAmount.toString(),
     totalContributed: total.toString(),
@@ -57,12 +63,18 @@ const updateSchema = z.object({
   status: z.enum(["ACTIVE", "COMPLETED", "ARCHIVED"]).optional(),
 });
 
-/** OWNER/ADMIN HOẶC người tạo goal */
-function canManageGoal(session: { user: { role: string; memberId: string } }, createdById: string) {
+/** OWNER/ADMIN HOẶC người tạo goal — nhưng nếu PERSONAL thì CHỈ người tạo */
+function canManageGoal(
+  session: { user: { role: string; memberId: string } },
+  goal: { createdById: string; visibility: Visibility }
+) {
+  if (goal.visibility === Visibility.PERSONAL) {
+    return session.user.memberId === goal.createdById;
+  }
   return (
     session.user.role === "OWNER" ||
     session.user.role === "ADMIN" ||
-    session.user.memberId === createdById
+    session.user.memberId === goal.createdById
   );
 }
 
@@ -73,10 +85,10 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 
   const existing = await prisma.savingGoal.findFirst({
     where: { id, familyId: session.user.familyId, deletedAt: null },
-    select: { id: true, name: true, targetAmount: true, status: true, description: true, createdById: true },
+    select: { id: true, name: true, targetAmount: true, status: true, description: true, createdById: true, visibility: true },
   });
   if (!existing) return NextResponse.json({ error: "Không tìm thấy" }, { status: 404 });
-  if (!canManageGoal(session, existing.createdById)) {
+  if (!canManageGoal(session, existing)) {
     return NextResponse.json({ error: "Bạn không có quyền sửa mục tiêu này" }, { status: 403 });
   }
 
@@ -131,10 +143,10 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
 
   const existing = await prisma.savingGoal.findFirst({
     where: { id, familyId: session.user.familyId, deletedAt: null },
-    select: { id: true, name: true, createdById: true },
+    select: { id: true, name: true, createdById: true, visibility: true },
   });
   if (!existing) return NextResponse.json({ error: "Không tìm thấy" }, { status: 404 });
-  if (!canManageGoal(session, existing.createdById)) {
+  if (!canManageGoal(session, existing)) {
     return NextResponse.json({ error: "Bạn không có quyền xoá mục tiêu này" }, { status: 403 });
   }
 
@@ -155,4 +167,5 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
 
   return NextResponse.json({ ok: true });
 }
+
 

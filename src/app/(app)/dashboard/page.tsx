@@ -22,7 +22,15 @@ export default async function DashboardPage() {
       take: 8,
     }),
     prisma.savingGoal.findMany({
-      where: { familyId, deletedAt: null, status: "ACTIVE" },
+      where: {
+        familyId,
+        deletedAt: null,
+        status: "ACTIVE",
+        OR: [
+          { visibility: "SHARED" },
+          { visibility: "PERSONAL", createdById: session.user.memberId },
+        ],
+      },
       include: { contributions: true },
       take: 5,
     }),

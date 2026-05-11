@@ -5,11 +5,13 @@ import { formatVND, parseMoneyInput, formatNumber } from "@/lib/money";
 import { formatDate } from "@/lib/date";
 
 type GoalStatus = "ACTIVE" | "COMPLETED" | "ARCHIVED";
+type GoalVisibility = "PERSONAL" | "SHARED";
 type Goal = {
   id: string;
   name: string;
   description: string | null;
   status: GoalStatus;
+  visibility: GoalVisibility;
   createdById: string;
   targetAmount: string;
   totalContributed: string;
@@ -35,6 +37,7 @@ export function SavingsClient({
   const [openId, setOpenId] = useState<string | null>(null);
   const [detail, setDetail] = useState<GoalDetail | null>(null);
   const [showCreate, setShowCreate] = useState(false);
+  const [tab, setTab] = useState<"ALL" | "SHARED" | "PERSONAL">("ALL");
 
   async function loadGoals() {
     const r = await fetch("/api/savings");
@@ -74,48 +77,89 @@ export function SavingsClient({
         </div>
       </div>
 
-      {showCreate && <CreateGoalForm members={members} onClose={() => setShowCreate(false)} onCreated={() => { setShowCreate(false); loadGoals(); }} />}
+      <div className="flex gap-2">
+        {([
+          { v: "ALL", label: "Tất cả" },
+          { v: "SHARED", label: "🤝 Chung" },
+          { v: "PERSONAL", label: "🔒 Cá nhân" },
+        ] as const).map((t) => (
+          <button
+            key={t.v}
+            onClick={() => setTab(t.v)}
+            className={`chip border ${tab === t.v ? "bg-primary text-white border-primary" : "bg-white"}`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
 
-      {goals.length === 0 ? (
-        <div className="card text-center py-10 text-gray-500">
-          <p className="text-4xl mb-2">🎯</p>
-          <p>Chưa có mục tiêu nào.</p>
-        </div>
-      ) : (
-        <ul className="space-y-3">
-          {goals.map((g) => (
-            <li key={g.id}>
-              <button onClick={() => setOpenId(g.id)} className="w-full text-left card hover:shadow-md transition">
-                <div className="flex justify-between items-start mb-2">
-                  <div>
-                    <p className="font-semibold">🎯 {g.name}{" "}
-                      {g.status !== "ACTIVE" && (
-                        <span className="ml-1 chip bg-gray-100 text-gray-600 text-[10px]">{g.status}</span>
-                      )}
-                    </p>
-                    {g.description && <p className="text-xs text-gray-500 mt-0.5">{g.description}</p>}
-                  </div>
-                  <span className="chip bg-primary/10 text-primary">{g.progress.toFixed(1)}%</span>
-                </div>
-                <div className="h-2 bg-gray-100 rounded-full overflow-hidden mb-2">
-                  <div className="h-full bg-primary" style={{ width: `${g.progress}%` }} />
-                </div>
-                <p className="text-xs text-gray-600">
-                  <span className="font-medium">{formatVND(g.totalContributed)}</span> / {formatVND(g.targetAmount)}
-                </p>
-              </button>
-            </li>
-          ))}
-        </ul>
+      {showCreate && (
+        <CreateGoalForm
+          members={members}
+          currentMemberId={currentMemberId}
+          onClose={() => setShowCreate(false)}
+          onCreated={() => { setShowCreate(false); loadGoals(); }}
+        />
       )}
+
+      {(() => {
+        const filtered = tab === "ALL" ? goals : goals.filter((g) => g.visibility === tab);
+        if (filtered.length === 0) {
+          return (
+            <div className="card text-center py-10 text-gray-500">
+              <p className="text-4xl mb-2">🎯</p>
+              <p>Chưa có mục tiêu nào.</p>
+            </div>
+          );
+        }
+        return (
+          <ul className="space-y-3">
+            {filtered.map((g) => (
+              <li key={g.id}>
+                <button onClick={() => setOpenId(g.id)} className="w-full text-left card hover:shadow-md transition">
+                  <div className="flex justify-between items-start mb-2">
+                    <div>
+                      <p className="font-semibold">
+                        {g.visibility === "PERSONAL" ? "🔒" : "🤝"} {g.name}{" "}
+                        {g.status !== "ACTIVE" && (
+                          <span className="ml-1 chip bg-gray-100 text-gray-600 text-[10px]">{g.status}</span>
+                        )}
+                      </p>
+                      {g.description && <p className="text-xs text-gray-500 mt-0.5">{g.description}</p>}
+                    </div>
+                    <span className="chip bg-primary/10 text-primary">{g.progress.toFixed(1)}%</span>
+                  </div>
+                  <div className="h-2 bg-gray-100 rounded-full overflow-hidden mb-2">
+                    <div className="h-full bg-primary" style={{ width: `${g.progress}%` }} />
+                  </div>
+                  <p className="text-xs text-gray-600">
+                    <span className="font-medium">{formatVND(g.totalContributed)}</span> / {formatVND(g.targetAmount)}
+                  </p>
+                </button>
+              </li>
+            ))}
+          </ul>
+        );
+      })()}
     </div>
   );
 }
 
-function CreateGoalForm({ members, onClose, onCreated }: { members: Member[]; onClose: () => void; onCreated: () => void }) {
+function CreateGoalForm({
+  members,
+  currentMemberId,
+  onClose,
+  onCreated,
+}: {
+  members: Member[];
+  currentMemberId: string;
+  onClose: () => void;
+  onCreated: () => void;
+}) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [target, setTarget] = useState("");
+  const [visibility, setVisibility] = useState<GoalVisibility>("SHARED");
   const [memberIds, setMemberIds] = useState<string[]>(members.map((m) => m.id));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -134,7 +178,8 @@ function CreateGoalForm({ members, onClose, onCreated }: { members: Member[]; on
         name,
         description: description || null,
         targetAmount: Number(parseMoneyInput(target).toString()),
-        memberIds,
+        visibility,
+        memberIds: visibility === "PERSONAL" ? [currentMemberId] : memberIds,
       }),
     });
     setLoading(false);
@@ -148,6 +193,32 @@ function CreateGoalForm({ members, onClose, onCreated }: { members: Member[]; on
         <h2 className="font-semibold">Tạo mục tiêu mới</h2>
         <button type="button" onClick={onClose} className="text-gray-500">✕</button>
       </div>
+
+      <div>
+        <label className="label">Loại mục tiêu</label>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => setVisibility("SHARED")}
+            className={`btn ${visibility === "SHARED" ? "bg-primary text-white" : "bg-gray-100 text-gray-700"}`}
+          >
+            🤝 Chung
+          </button>
+          <button
+            type="button"
+            onClick={() => setVisibility("PERSONAL")}
+            className={`btn ${visibility === "PERSONAL" ? "bg-primary text-white" : "bg-gray-100 text-gray-700"}`}
+          >
+            🔒 Cá nhân
+          </button>
+        </div>
+        <p className="text-xs text-gray-500 mt-1">
+          {visibility === "PERSONAL"
+            ? "Chỉ bạn thấy và đóng góp được."
+            : "Cả gia đình thấy. Chỉ thành viên được chia mới đóng góp được."}
+        </p>
+      </div>
+
       <div>
         <label className="label">Tên mục tiêu</label>
         <input className="input" required value={name} onChange={(e) => setName(e.target.value)} placeholder="Vd: Du lịch hè" />
@@ -161,18 +232,22 @@ function CreateGoalForm({ members, onClose, onCreated }: { members: Member[]; on
         <input className="input" required inputMode="numeric" value={target} onChange={(e) => setTarget(e.target.value.replace(/[^\d]/g, ""))} />
         {target && <p className="text-xs text-gray-500 mt-1">{formatNumber(target)} ₫</p>}
       </div>
-      <div>
-        <label className="label">Thành viên tham gia</label>
-        <div className="flex flex-wrap gap-2">
-          {members.map((m) => (
-            <button key={m.id} type="button" onClick={() => toggle(m.id)} className={`chip border ${memberIds.includes(m.id) ? "bg-primary text-white border-primary" : "bg-white"}`}>
-              {m.user.name}
-            </button>
-          ))}
+
+      {visibility === "SHARED" && (
+        <div>
+          <label className="label">Thành viên tham gia</label>
+          <div className="flex flex-wrap gap-2">
+            {members.map((m) => (
+              <button key={m.id} type="button" onClick={() => toggle(m.id)} className={`chip border ${memberIds.includes(m.id) ? "bg-primary text-white border-primary" : "bg-white"}`}>
+                {m.user.name}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
+
       {error && <p className="text-sm text-danger">{error}</p>}
-      <button className="btn-primary w-full" disabled={loading || memberIds.length === 0}>
+      <button className="btn-primary w-full" disabled={loading || (visibility === "SHARED" && memberIds.length === 0)}>
         {loading ? "Đang tạo..." : "Tạo mục tiêu"}
       </button>
     </form>
@@ -324,7 +399,25 @@ function GoalDetailView({
   const canManageGoal =
     currentRole === "OWNER" || currentRole === "ADMIN" || currentMemberId === goal.createdById;
 
+  // Quyền đóng góp:
+  // - PERSONAL: chỉ chủ goal
+  // - SHARED: phải là member được chia
+  const sharedMemberIds = new Set(goal.members.map((m) => m.memberId));
+  const canContribute =
+    goal.visibility === "PERSONAL"
+      ? currentMemberId === goal.createdById
+      : sharedMemberIds.has(currentMemberId);
+
+  // Danh sách người được phép chọn ở dropdown "Người góp"
+  const contributableMembers =
+    goal.visibility === "PERSONAL"
+      ? members.filter((m) => m.id === currentMemberId)
+      : members.filter((m) => sharedMemberIds.has(m.id));
+
   function canManageContribution(c: Contribution) {
+    if (goal.visibility === "PERSONAL") {
+      return currentMemberId === goal.createdById;
+    }
     return (
       currentRole === "OWNER" ||
       currentRole === "ADMIN" ||
@@ -386,7 +479,12 @@ function GoalDetailView({
         <div className="card">
           <div className="flex justify-between items-start gap-3">
             <div className="min-w-0">
-              <h1 className="text-xl font-bold">🎯 {goal.name}</h1>
+              <h1 className="text-xl font-bold">
+                {goal.visibility === "PERSONAL" ? "🔒" : "🤝"} {goal.name}
+              </h1>
+              <p className="text-xs text-gray-500 mt-1">
+                {goal.visibility === "PERSONAL" ? "Mục tiêu cá nhân (chỉ bạn thấy)" : "Mục tiêu chung của gia đình"}
+              </p>
               {goal.description && <p className="text-sm text-gray-500 mt-1">{goal.description}</p>}
               {goal.status !== "ACTIVE" && (
                 <span className="mt-2 inline-block chip bg-gray-100 text-gray-600 text-xs">{goal.status}</span>
@@ -426,28 +524,41 @@ function GoalDetailView({
 
       <form onSubmit={submit} className="card space-y-3">
         <h2 className="font-semibold">Thêm đóng góp</h2>
-        <div>
-          <label className="label">Số tiền</label>
-          <input className="input" required inputMode="numeric" value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^\d]/g, ""))} />
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="label">Ngày</label>
-            <input type="date" className="input" required value={date} onChange={(e) => setDate(e.target.value)} />
-          </div>
-          <div>
-            <label className="label">Người góp</label>
-            <select className="input" value={memberId} onChange={(e) => setMemberId(e.target.value)}>
-              {members.map((m) => <option key={m.id} value={m.id}>{m.user.name}</option>)}
-            </select>
-          </div>
-        </div>
-        <div>
-          <label className="label">Ghi chú</label>
-          <input className="input" value={note} onChange={(e) => setNote(e.target.value)} />
-        </div>
-        {error && <p className="text-sm text-danger">{error}</p>}
-        <button className="btn-primary w-full" disabled={loading}>{loading ? "Đang lưu..." : "Đóng góp"}</button>
+        {!canContribute ? (
+          <p className="text-sm text-gray-500">
+            Bạn không nằm trong danh sách thành viên được chia mục tiêu này nên không thể đóng góp.
+          </p>
+        ) : (
+          <>
+            <div>
+              <label className="label">Số tiền</label>
+              <input className="input" required inputMode="numeric" value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^\d]/g, ""))} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="label">Ngày</label>
+                <input type="date" className="input" required value={date} onChange={(e) => setDate(e.target.value)} />
+              </div>
+              <div>
+                <label className="label">Người góp</label>
+                <select
+                  className="input"
+                  value={memberId}
+                  onChange={(e) => setMemberId(e.target.value)}
+                  disabled={goal.visibility === "PERSONAL"}
+                >
+                  {contributableMembers.map((m) => <option key={m.id} value={m.id}>{m.user.name}</option>)}
+                </select>
+              </div>
+            </div>
+            <div>
+              <label className="label">Ghi chú</label>
+              <input className="input" value={note} onChange={(e) => setNote(e.target.value)} />
+            </div>
+            {error && <p className="text-sm text-danger">{error}</p>}
+            <button className="btn-primary w-full" disabled={loading}>{loading ? "Đang lưu..." : "Đóng góp"}</button>
+          </>
+        )}
       </form>
 
       <div className="card">

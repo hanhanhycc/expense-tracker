@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { Prisma } from "@prisma/client";
+import { Prisma, Visibility } from "@prisma/client";
 import { logActivity } from "@/lib/activity-log";
 
 const patchSchema = z.object({
@@ -11,24 +11,31 @@ const patchSchema = z.object({
   date: z.string().min(1).optional(),
 });
 
-/** OWNER/ADMIN HOẶC chính người đã đóng góp (memberId == self) */
+/**
+ * Quyền sửa/xoá đóng góp:
+ * - PERSONAL goal: chỉ chủ goal.
+ * - SHARED goal: OWNER / ADMIN / chủ goal / chính người đóng góp.
+ */
 function canManageContribution(
   session: { user: { role: string; memberId: string } },
-  contributionMemberId: string,
-  goalCreatedById: string
+  goal: { createdById: string; visibility: Visibility },
+  contributionMemberId: string
 ) {
+  if (goal.visibility === Visibility.PERSONAL) {
+    return session.user.memberId === goal.createdById;
+  }
   return (
     session.user.role === "OWNER" ||
     session.user.role === "ADMIN" ||
     session.user.memberId === contributionMemberId ||
-    session.user.memberId === goalCreatedById
+    session.user.memberId === goal.createdById
   );
 }
 
 async function loadContext(familyId: string, goalId: string, cid: string) {
   const goal = await prisma.savingGoal.findFirst({
     where: { id: goalId, familyId, deletedAt: null },
-    select: { id: true, name: true, createdById: true },
+    select: { id: true, name: true, createdById: true, visibility: true },
   });
   if (!goal) return { error: "Không tìm thấy mục tiêu" as const };
   const c = await prisma.savingContribution.findFirst({
@@ -49,7 +56,7 @@ export async function PATCH(
 
   const ctx = await loadContext(session.user.familyId, id, cid);
   if ("error" in ctx) return NextResponse.json({ error: ctx.error }, { status: 404 });
-  if (!canManageContribution(session, ctx.contribution.memberId, ctx.goal.createdById)) {
+  if (!canManageContribution(session, ctx.goal, ctx.contribution.memberId)) {
     return NextResponse.json({ error: "Bạn không có quyền sửa đóng góp này" }, { status: 403 });
   }
 
@@ -105,7 +112,7 @@ export async function DELETE(
 
   const ctx = await loadContext(session.user.familyId, id, cid);
   if ("error" in ctx) return NextResponse.json({ error: ctx.error }, { status: 404 });
-  if (!canManageContribution(session, ctx.contribution.memberId, ctx.goal.createdById)) {
+  if (!canManageContribution(session, ctx.goal, ctx.contribution.memberId)) {
     return NextResponse.json({ error: "Bạn không có quyền xoá đóng góp này" }, { status: 403 });
   }
 
@@ -124,3 +131,4 @@ export async function DELETE(
 
   return NextResponse.json({ ok: true });
 }
+

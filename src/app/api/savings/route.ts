@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { Prisma, GoalStatus } from "@prisma/client";
+import { Prisma, GoalStatus, Visibility } from "@prisma/client";
 import { sumMoney } from "@/lib/money";
 import { logActivity } from "@/lib/activity-log";
 
@@ -10,7 +10,8 @@ const createSchema = z.object({
   name: z.string().min(1).max(120),
   description: z.string().max(500).optional().nullable(),
   targetAmount: z.coerce.number().positive(),
-  memberIds: z.array(z.string()).min(1),
+  visibility: z.enum(["PERSONAL", "SHARED"]).default("SHARED"),
+  memberIds: z.array(z.string()).optional(),
 });
 
 export async function GET() {
@@ -18,7 +19,14 @@ export async function GET() {
   if (!session?.user?.familyId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const goals = await prisma.savingGoal.findMany({
-    where: { familyId: session.user.familyId, deletedAt: null },
+    where: {
+      familyId: session.user.familyId,
+      deletedAt: null,
+      OR: [
+        { visibility: Visibility.SHARED },
+        { visibility: Visibility.PERSONAL, createdById: session.user.memberId },
+      ],
+    },
     include: {
       members: { include: { member: { include: { user: true } } } },
       contributions: true,
@@ -33,6 +41,7 @@ export async function GET() {
       name: g.name,
       description: g.description,
       status: g.status,
+      visibility: g.visibility,
       createdById: g.createdById,
       targetAmount: g.targetAmount.toString(),
       totalContributed: total.toString(),
@@ -52,13 +61,23 @@ export async function POST(req: Request) {
   const parsed = createSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: "Dữ liệu không hợp lệ" }, { status: 400 });
 
-  // Đảm bảo memberIds đều thuộc family hiện tại
-  const validMembers = await prisma.familyMember.findMany({
-    where: { id: { in: parsed.data.memberIds }, familyId: session.user.familyId },
-    select: { id: true },
-  });
-  if (validMembers.length !== parsed.data.memberIds.length) {
-    return NextResponse.json({ error: "Có thành viên không thuộc gia đình" }, { status: 400 });
+  // PERSONAL: bỏ qua memberIds, luôn chỉ là chính người tạo
+  let memberIds: string[];
+  if (parsed.data.visibility === "PERSONAL") {
+    memberIds = [session.user.memberId];
+  } else {
+    memberIds = parsed.data.memberIds ?? [];
+    if (memberIds.length === 0) {
+      return NextResponse.json({ error: "Mục tiêu chung phải có ít nhất 1 thành viên" }, { status: 400 });
+    }
+    // Đảm bảo memberIds đều thuộc family hiện tại
+    const validMembers = await prisma.familyMember.findMany({
+      where: { id: { in: memberIds }, familyId: session.user.familyId },
+      select: { id: true },
+    });
+    if (validMembers.length !== memberIds.length) {
+      return NextResponse.json({ error: "Có thành viên không thuộc gia đình" }, { status: 400 });
+    }
   }
 
   const goal = await prisma.savingGoal.create({
@@ -68,8 +87,9 @@ export async function POST(req: Request) {
       description: parsed.data.description ?? null,
       targetAmount: new Prisma.Decimal(parsed.data.targetAmount),
       status: GoalStatus.ACTIVE,
+      visibility: parsed.data.visibility as Visibility,
       createdById: session.user.memberId,
-      members: { create: parsed.data.memberIds.map((mid) => ({ memberId: mid })) },
+      members: { create: memberIds.map((mid) => ({ memberId: mid })) },
     },
   });
 
@@ -80,9 +100,10 @@ export async function POST(req: Request) {
     action: "CREATE",
     entity: "saving_goal",
     entityId: goal.id,
-    summary: `Tạo mục tiêu "${goal.name}" — ${parsed.data.targetAmount.toLocaleString("vi-VN")} ₫`,
+    summary: `Tạo mục tiêu ${parsed.data.visibility === "PERSONAL" ? "(cá nhân)" : "(chung)"} "${goal.name}" — ${parsed.data.targetAmount.toLocaleString("vi-VN")} ₫`,
   });
 
   return NextResponse.json({ id: goal.id });
 }
+
 
