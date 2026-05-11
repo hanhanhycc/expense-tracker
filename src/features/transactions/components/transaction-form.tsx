@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { parseMoneyInput } from "@/lib/money";
 import { MoneyInput } from "@/components/money-input";
 import { useToast } from "@/components/toast";
+import { fireConfetti } from "@/components/confetti";
 
 type Category = { id: string; name: string; kind: "INCOME" | "EXPENSE"; icon: string | null; color: string | null };
 type Member = { id: string; user: { id: string; name: string }; role: string };
@@ -142,6 +143,7 @@ export function TransactionForm({ initial, currentMemberId }: { initial?: Transa
     }
 
     toast.success(initial?.id ? "Đã cập nhật giao dịch" : "Đã thêm giao dịch");
+    if (!initial?.id && type === "INCOME") fireConfetti();
     router.push("/history");
     router.refresh();
   }

@@ -5,6 +5,7 @@ import { formatVND, parseMoneyInput } from "@/lib/money";
 import { formatDate } from "@/lib/date";
 import { useToast } from "@/components/toast";
 import { MoneyInput } from "@/components/money-input";
+import { fireConfetti } from "@/components/confetti";
 
 type GoalStatus = "ACTIVE" | "COMPLETED" | "ARCHIVED";
 type GoalVisibility = "PERSONAL" | "SHARED";
@@ -448,6 +449,14 @@ function GoalDetailView({
     setLoading(false);
     if (!res.ok) { const msg = (await res.json()).error || "Lỗi"; setError(msg); toast.error(msg); return; }
     toast.success("Đã thêm đóng góp");
+    // Pháo hoa khi đóng góp này khiến mục tiêu hoàn thành
+    const before = Number(goal.totalContributed);
+    const target = Number(goal.targetAmount);
+    const after = before + Number(parseMoneyInput(amount).toString());
+    if (target > 0 && before < target && after >= target) {
+      fireConfetti(3500);
+      toast.success(`🎉 Hoàn thành mục tiêu "${goal.name}"!`);
+    }
     setAmount(""); setNote("");
     onChanged();
   }
