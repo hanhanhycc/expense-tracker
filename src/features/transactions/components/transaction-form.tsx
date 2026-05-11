@@ -215,9 +215,13 @@ export function TransactionForm({ initial, currentMemberId }: { initial?: Transa
             >✕</button>
           </div>
         ) : (
-          <label className="flex flex-col items-center justify-center gap-1 px-4 py-6 rounded-2xl border-2 border-dashed border-rose-200 bg-rose-50/40 text-sm text-gray-600 cursor-pointer hover:bg-rose-50">
-            <span className="text-2xl">�️</span>
-            <span>Chọn ảnh bill từ thư viện</span>
+          <label className="flex flex-col items-center justify-center gap-2 px-4 py-6 rounded-2xl border-2 border-dashed border-rose-200 bg-rose-50/40 text-sm text-gray-600 cursor-pointer hover:bg-rose-50">
+            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#E64980" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <rect x="3" y="5" width="18" height="14" rx="2.5" />
+              <circle cx="8.5" cy="10.5" r="1.5" />
+              <path d="M21 16l-5-5-7 7" />
+            </svg>
+            <span className="font-medium">Chọn ảnh bill từ thư viện</span>
             <span className="text-[11px] text-gray-400">JPG/PNG/WEBP/HEIC, tối đa 8MB</span>
             <input
               type="file"
