@@ -43,7 +43,7 @@ export function TopBar() {
           {open && (
             <div
               role="menu"
-              className="absolute right-0 top-11 w-56 glass-strong rounded-2xl py-1 text-sm"
+              className="absolute right-0 top-11 w-56 bg-white rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.12)] border border-gray-100 py-1 text-sm overflow-hidden"
             >
               <div className="px-3 py-2 border-b text-gray-500 text-xs">{data?.user?.email}</div>
               <Link href="/settings" className="block px-3 py-2 hover:bg-gray-50" onClick={() => setOpen(false)}>⚙️ Cài đặt</Link>

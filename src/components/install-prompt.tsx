@@ -8,6 +8,7 @@ type BeforeInstallPromptEvent = Event & {
 };
 
 const DISMISS_KEY = "sm_install_dismissed_at";
+const NEVER_KEY = "sm_install_never";
 const DISMISS_DAYS = 7;
 
 function isStandalone(): boolean {
@@ -42,6 +43,7 @@ function isIOSSafari(): boolean {
 
 function dismissedRecently(): boolean {
   try {
+    if (localStorage.getItem(NEVER_KEY) === "1") return true;
     const v = localStorage.getItem(DISMISS_KEY);
     if (!v) return false;
     const ts = Number(v);
@@ -97,6 +99,14 @@ export function InstallPrompt() {
     setIosOpen(false);
   }
 
+  function never() {
+    try {
+      localStorage.setItem(NEVER_KEY, "1");
+    } catch {}
+    setShow(false);
+    setIosOpen(false);
+  }
+
   async function install() {
     if (deferred) {
       await deferred.prompt();
@@ -113,7 +123,7 @@ export function InstallPrompt() {
   return (
     <>
       <div className="fixed bottom-24 left-3 right-3 z-40 desktop:bottom-6 desktop:left-auto desktop:right-6 desktop:max-w-sm">
-        <div className="glass-strong rounded-2xl p-4 flex items-start gap-3">
+        <div className="bg-white rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.15)] border border-gray-100 p-4 flex items-start gap-3">
           <img src="/logo.svg" alt="" className="h-10 w-10 shrink-0" />
           <div className="flex-1 text-sm">
             <p className="font-semibold">Cài Saving Money</p>
@@ -122,12 +132,15 @@ export function InstallPrompt() {
                 ? "Thêm vào màn hình chính để dùng như app native."
                 : "Cài đặt ứng dụng để dùng nhanh hơn, kể cả khi không có mạng."}
             </p>
-            <div className="flex gap-2 mt-3">
+            <div className="flex flex-wrap gap-2 mt-3">
               <button onClick={install} className="btn-primary !py-1.5 !px-3 text-xs">
                 {platform === "ios" ? "Hướng dẫn cài" : "Cài đặt"}
               </button>
               <button onClick={dismiss} className="btn-ghost !py-1.5 !px-3 text-xs">
                 Để sau
+              </button>
+              <button onClick={never} className="!py-1.5 !px-3 text-xs text-gray-400 hover:text-gray-600 underline">
+                Không nhắc nữa
               </button>
             </div>
           </div>
@@ -144,7 +157,7 @@ export function InstallPrompt() {
       {iosOpen && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4" onClick={dismiss}>
           <div
-            className="glass-strong rounded-2xl p-5 max-w-sm w-full"
+            className="bg-white rounded-2xl shadow-2xl p-5 max-w-sm w-full"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center gap-3 mb-3">
