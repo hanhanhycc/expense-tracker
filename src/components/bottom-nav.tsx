@@ -37,11 +37,14 @@ export function BottomNav() {
               <Link
                 href={it.href}
                 className={clsx(
-                  "h-full flex flex-col items-center justify-center gap-0.5 text-xs",
-                  active ? "text-primary font-medium" : "text-gray-500"
+                  "h-full flex flex-col items-center justify-center gap-0.5 text-xs transition relative",
+                  active ? "text-primary font-semibold" : "text-gray-500 hover:text-gray-800"
                 )}
               >
-                <span className="text-lg">{it.icon}</span>
+                {active && (
+                  <span className="absolute top-1.5 w-8 h-1 rounded-full bg-primary" />
+                )}
+                <span className="text-lg mt-1">{it.icon}</span>
                 <span>{it.label}</span>
               </Link>
             </li>

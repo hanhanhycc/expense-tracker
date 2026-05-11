@@ -19,7 +19,7 @@ export default {
         danger: { DEFAULT: "#dc2626", 50: "#fef2f2" },
       },
       fontFamily: {
-        sans: ["system-ui", "-apple-system", "Segoe UI", "Roboto", "sans-serif"],
+        sans: ["var(--font-inter)", "system-ui", "-apple-system", "Segoe UI", "Roboto", "sans-serif"],
       },
     },
   },

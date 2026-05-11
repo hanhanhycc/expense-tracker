@@ -1,19 +1,60 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none" stroke="#EF5A5A" stroke-width="8" stroke-linecap="round" stroke-linejoin="round">
-  <!-- coins / bubbles -->
-  <circle cx="78" cy="40" r="10" />
-  <circle cx="105" cy="32" r="6" />
-  <!-- pig body -->
-  <path d="M55 95 C55 75, 80 60, 105 60 C140 60, 165 78, 165 100 C165 115, 158 128, 145 137 L150 158 L132 158 L128 148 C120 150, 112 151, 105 151 C97 151, 90 150, 84 148 L80 158 L62 158 L66 138 C58 132, 55 120, 55 110 Z" />
-  <!-- snout -->
-  <ellipse cx="55" cy="105" rx="10" ry="12" />
-  <circle cx="52" cy="100" r="2" fill="#EF5A5A" />
-  <circle cx="52" cy="110" r="2" fill="#EF5A5A" />
-  <!-- eye -->
-  <circle cx="80" cy="92" r="3.5" fill="#EF5A5A" />
-  <!-- ear -->
-  <path d="M125 65 L135 55 L140 70" />
-  <!-- dollar sign -->
-  <path d="M110 80 L110 130 M118 88 C118 84, 114 82, 110 82 C106 82, 102 84, 102 88 C102 96, 118 94, 118 102 C118 106, 114 108, 110 108 C106 108, 102 106, 102 102" stroke-width="6" />
-  <!-- coin slot -->
-  <path d="M100 60 L120 60" stroke-width="4" />
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#FF8E8E" />
+      <stop offset="55%" stop-color="#EF5A5A" />
+      <stop offset="100%" stop-color="#C73838" />
+    </linearGradient>
+    <linearGradient id="pig" x1="0.2" y1="0.2" x2="0.8" y2="0.9">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="100%" stop-color="#FFE0E0" />
+    </linearGradient>
+    <radialGradient id="shine" cx="0.3" cy="0.3" r="0.5">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.55" />
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0" />
+    </radialGradient>
+    <linearGradient id="coin" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#FFE082" />
+      <stop offset="100%" stop-color="#F5B700" />
+    </linearGradient>
+  </defs>
+
+  <!-- Rounded background -->
+  <rect width="512" height="512" rx="112" fill="url(#bg)" />
+
+  <!-- Floating coins -->
+  <g>
+    <circle cx="180" cy="118" r="24" fill="url(#coin)" stroke="#A8780A" stroke-width="3" />
+    <text x="180" y="129" font-family="system-ui, -apple-system, Segoe UI" font-size="28" font-weight="800" fill="#7a5400" text-anchor="middle">$</text>
+    <circle cx="245" cy="82" r="14" fill="url(#coin)" stroke="#A8780A" stroke-width="2" />
+  </g>
+
+  <!-- Pig body -->
+  <g transform="translate(80 168)">
+    <ellipse cx="180" cy="135" rx="170" ry="115" fill="url(#pig)" />
+    <!-- snout -->
+    <ellipse cx="32" cy="150" rx="32" ry="40" fill="#FFC1C1" stroke="#E89292" stroke-width="3" />
+    <ellipse cx="24" cy="138" rx="4" ry="6" fill="#7a3b3b" />
+    <ellipse cx="24" cy="162" rx="4" ry="6" fill="#7a3b3b" />
+    <!-- eye -->
+    <circle cx="108" cy="105" r="10" fill="#2a1a1a" />
+    <circle cx="112" cy="101" r="3" fill="#FFFFFF" />
+    <!-- ear -->
+    <path d="M232 50 L268 24 L286 64 Z" fill="#FFC1C1" stroke="#E89292" stroke-width="3" stroke-linejoin="round" />
+    <!-- tail curl -->
+    <path d="M348 110 q22 -10 18 -32 q-3 -20 -26 -14" fill="none" stroke="#E89292" stroke-width="6" stroke-linecap="round" />
+    <!-- legs -->
+    <rect x="80" y="225" width="32" height="40" rx="10" fill="#FFC1C1" />
+    <rect x="240" y="225" width="32" height="40" rx="10" fill="#FFC1C1" />
+    <!-- coin slot -->
+    <rect x="160" y="50" width="76" height="14" rx="7" fill="#7a3b3b" />
+    <!-- shine -->
+    <ellipse cx="150" cy="80" rx="110" ry="48" fill="url(#shine)" />
+  </g>
+
+  <!-- Big $ medallion in front -->
+  <g>
+    <circle cx="256" cy="324" r="74" fill="url(#coin)" stroke="#A8780A" stroke-width="6" />
+    <text x="256" y="360" font-family="system-ui, -apple-system, Segoe UI" font-size="100" font-weight="900" fill="#7a5400" text-anchor="middle">$</text>
+  </g>
 </svg>
