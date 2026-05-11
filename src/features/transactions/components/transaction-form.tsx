@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { formatNumber, parseMoneyInput } from "@/lib/money";
+import { parseMoneyInput } from "@/lib/money";
+import { MoneyInput } from "@/components/money-input";
 import { useToast } from "@/components/toast";
 
 type Category = { id: string; name: string; kind: "INCOME" | "EXPENSE"; icon: string | null; color: string | null };
@@ -30,7 +31,6 @@ export function TransactionForm({ initial, currentMemberId }: { initial?: Transa
 
   const [type, setType] = useState<"INCOME" | "EXPENSE">(initial?.type ?? "EXPENSE");
   const [amount, setAmount] = useState<string>(initial?.amount ?? "");
-  const [amountDisplay, setAmountDisplay] = useState<string>(initial?.amount ? formatNumber(initial.amount) : "");
   const [categoryId, setCategoryId] = useState(initial?.categoryId ?? "");
   const [note, setNote] = useState(initial?.note ?? "");
   const [date, setDate] = useState(initial?.date ?? new Date().toISOString().slice(0, 10));
@@ -101,18 +101,12 @@ export function TransactionForm({ initial, currentMemberId }: { initial?: Transa
 
       <div>
         <label className="label">Số tiền</label>
-        <input
+        <MoneyInput
           className="input text-2xl font-bold text-right"
-          inputMode="numeric"
           required
-          value={amountDisplay}
-          onChange={(e) => {
-            setAmountDisplay(e.target.value);
-            setAmount(parseMoneyInput(e.target.value).toString());
-          }}
-          onBlur={() => setAmountDisplay(amount ? formatNumber(amount) + " ₫" : "")}
-          onFocus={() => setAmountDisplay(amount)}
-          placeholder="0"
+          value={amount}
+          onValueChange={setAmount}
+          placeholder="0 ₫"
         />
       </div>
 
@@ -198,15 +192,12 @@ export function TransactionForm({ initial, currentMemberId }: { initial?: Transa
                   return (
                     <div key={mid} className="flex items-center gap-2">
                       <span className="text-sm flex-1">{m?.user.name}</span>
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        className="input !w-40 text-right"
-                        placeholder="0"
+                      <MoneyInput
+                        className="input !w-44 text-right"
+                        placeholder="0 ₫"
                         value={customShares[mid] ?? ""}
-                        onChange={(e) => setCustomShares((s) => ({ ...s, [mid]: e.target.value.replace(/[^\d]/g, "") }))}
+                        onValueChange={(v) => setCustomShares((s) => ({ ...s, [mid]: v }))}
                       />
-                      <span className="text-xs text-gray-500">₫</span>
                     </div>
                   );
                 })}

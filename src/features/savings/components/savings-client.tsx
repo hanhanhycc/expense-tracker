@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { formatVND, parseMoneyInput, formatNumber } from "@/lib/money";
+import { formatVND, parseMoneyInput } from "@/lib/money";
 import { formatDate } from "@/lib/date";
 import { useToast } from "@/components/toast";
+import { MoneyInput } from "@/components/money-input";
 
 type GoalStatus = "ACTIVE" | "COMPLETED" | "ARCHIVED";
 type GoalVisibility = "PERSONAL" | "SHARED";
@@ -231,8 +232,7 @@ function CreateGoalForm({
       </div>
       <div>
         <label className="label">Số tiền mục tiêu</label>
-        <input className="input" required inputMode="numeric" value={target} onChange={(e) => setTarget(e.target.value.replace(/[^\d]/g, ""))} />
-        {target && <p className="text-xs text-gray-500 mt-1">{formatNumber(target)} ₫</p>}
+        <MoneyInput className="input" required value={target} onValueChange={setTarget} placeholder="0 ₫" />
       </div>
 
       {visibility === "SHARED" && (
@@ -308,8 +308,7 @@ function EditGoalForm({
       </div>
       <div>
         <label className="label">Số tiền mục tiêu</label>
-        <input className="input" required inputMode="numeric" value={target} onChange={(e) => setTarget(e.target.value.replace(/[^\d]/g, ""))} />
-        {target && <p className="text-xs text-gray-500 mt-1">{formatNumber(target)} ₫</p>}
+        <MoneyInput className="input" required value={target} onValueChange={setTarget} placeholder="0 ₫" />
       </div>
       <div>
         <label className="label">Trạng thái</label>
@@ -363,7 +362,7 @@ function EditContributionRow({
   return (
     <div className="py-2 space-y-2">
       <div className="grid grid-cols-2 gap-2">
-        <input className="input !py-1.5" inputMode="numeric" value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^\d]/g, ""))} />
+        <MoneyInput className="input !py-1.5" value={amount} onValueChange={setAmount} placeholder="0 ₫" />
         <input type="date" className="input !py-1.5" value={date} onChange={(e) => setDate(e.target.value)} />
       </div>
       <input className="input !py-1.5" placeholder="Ghi chú" value={note} onChange={(e) => setNote(e.target.value)} />
@@ -544,7 +543,7 @@ function GoalDetailView({
           <>
             <div>
               <label className="label">Số tiền</label>
-              <input className="input" required inputMode="numeric" value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^\d]/g, ""))} />
+              <MoneyInput className="input" required value={amount} onValueChange={setAmount} placeholder="0 ₫" />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
