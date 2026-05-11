@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { formatNumber, parseMoneyInput } from "@/lib/money";
+import { useToast } from "@/components/toast";
 
 type Category = { id: string; name: string; kind: "INCOME" | "EXPENSE"; icon: string | null; color: string | null };
 type Member = { id: string; user: { id: string; name: string }; role: string };
@@ -23,6 +24,7 @@ export type TransactionFormInitial = {
 
 export function TransactionForm({ initial, currentMemberId }: { initial?: TransactionFormInitial; currentMemberId: string }) {
   const router = useRouter();
+  const toast = useToast();
   const [categories, setCategories] = useState<Category[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
 
@@ -81,9 +83,11 @@ export function TransactionForm({ initial, currentMemberId }: { initial?: Transa
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
       setError(data.error || "Lỗi không xác định");
+      toast.error(data.error || "Lưu giao dịch thất bại");
       setLoading(false);
       return;
     }
+    toast.success(initial?.id ? "Đã cập nhật giao dịch" : "Đã thêm giao dịch");
     router.push("/history");
     router.refresh();
   }

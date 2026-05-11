@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useToast } from "@/components/toast";
 
 type Role = "OWNER" | "ADMIN" | "MEMBER";
 type Member = { id: string; role: Role; user: { id: string; name: string; email: string } };
@@ -10,7 +11,7 @@ export function MembersClient({ canManage, currentMemberId }: { canManage: boole
   const [code, setCode] = useState<string | null>(null);
   const [role, setRole] = useState<"MEMBER" | "ADMIN">("MEMBER");
   const [loading, setLoading] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
+  const toast = useToast();
 
   async function load() {
     const r = await fetch("/api/members");
@@ -20,20 +21,19 @@ export function MembersClient({ canManage, currentMemberId }: { canManage: boole
 
   async function genInvite() {
     setLoading(true);
-    setErr(null);
     const r = await fetch("/api/invites", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ role }) });
     setLoading(false);
     if (r.ok) {
       const d = await r.json();
       setCode(d.code);
+      toast.success("Đã tạo mã mời");
     } else {
       const d = await r.json().catch(() => ({}));
-      setErr(d.error || "Không tạo được mã mời");
+      toast.error(d.error || "Không tạo được mã mời");
     }
   }
 
   async function changeRole(id: string, newRole: "MEMBER" | "ADMIN") {
-    setErr(null);
     const r = await fetch(`/api/members/${id}`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
@@ -41,21 +41,22 @@ export function MembersClient({ canManage, currentMemberId }: { canManage: boole
     });
     if (!r.ok) {
       const d = await r.json().catch(() => ({}));
-      setErr(d.error || "Đổi vai trò thất bại");
+      toast.error(d.error || "Đổi vai trò thất bại");
       return;
     }
+    toast.success("Đã đổi vai trò");
     load();
   }
 
   async function remove(id: string) {
     if (!confirm("Xoá thành viên này?")) return;
-    setErr(null);
     const r = await fetch(`/api/members/${id}`, { method: "DELETE" });
     if (!r.ok) {
       const d = await r.json().catch(() => ({}));
-      setErr(d.error || "Xoá thất bại");
+      toast.error(d.error || "Xoá thất bại");
       return;
     }
+    toast.success("Đã xoá thành viên");
     load();
   }
 
@@ -85,8 +86,6 @@ export function MembersClient({ canManage, currentMemberId }: { canManage: boole
           )}
         </div>
       )}
-
-      {err && <p className="text-sm text-danger">{err}</p>}
 
       <div className="card !p-0">
         <ul className="divide-y">

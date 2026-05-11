@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { formatVND, parseMoneyInput, formatNumber } from "@/lib/money";
 import { formatDate } from "@/lib/date";
+import { useToast } from "@/components/toast";
 
 type GoalStatus = "ACTIVE" | "COMPLETED" | "ARCHIVED";
 type GoalVisibility = "PERSONAL" | "SHARED";
@@ -163,6 +164,7 @@ function CreateGoalForm({
   const [memberIds, setMemberIds] = useState<string[]>(members.map((m) => m.id));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const toast = useToast();
 
   function toggle(id: string) {
     setMemberIds((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
@@ -183,7 +185,8 @@ function CreateGoalForm({
       }),
     });
     setLoading(false);
-    if (!res.ok) { setError((await res.json()).error || "Lỗi"); return; }
+    if (!res.ok) { const msg = (await res.json()).error || "Lỗi"; setError(msg); toast.error(msg); return; }
+    toast.success("Đã tạo mục tiêu");
     onCreated();
   }
 
@@ -269,6 +272,7 @@ function EditGoalForm({
   const [status, setStatus] = useState<GoalStatus>(goal.status);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const toast = useToast();
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -284,7 +288,8 @@ function EditGoalForm({
       }),
     });
     setLoading(false);
-    if (!res.ok) { setError((await res.json()).error || "Lỗi"); return; }
+    if (!res.ok) { const msg = (await res.json()).error || "Lỗi"; setError(msg); toast.error(msg); return; }
+    toast.success("Đã cập nhật mục tiêu");
     onSaved();
   }
 
@@ -337,6 +342,7 @@ function EditContributionRow({
   const [date, setDate] = useState(contribution.date.slice(0, 10));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const toast = useToast();
 
   async function save() {
     setLoading(true); setError(null);
@@ -350,7 +356,8 @@ function EditContributionRow({
       }),
     });
     setLoading(false);
-    if (!res.ok) { setError((await res.json()).error || "Lỗi"); return; }
+    if (!res.ok) { const msg = (await res.json()).error || "Lỗi"; setError(msg); toast.error(msg); return; }
+    toast.success("Đã cập nhật đóng góp");
     onSaved();
   }
 
@@ -395,6 +402,7 @@ function GoalDetailView({
   const [error, setError] = useState<string | null>(null);
   const [showEdit, setShowEdit] = useState(false);
   const [editCid, setEditCid] = useState<string | null>(null);
+  const toast = useToast();
 
   const canManageGoal =
     currentRole === "OWNER" || currentRole === "ADMIN" || currentMemberId === goal.createdById;
@@ -440,7 +448,8 @@ function GoalDetailView({
       }),
     });
     setLoading(false);
-    if (!res.ok) { setError((await res.json()).error || "Lỗi"); return; }
+    if (!res.ok) { const msg = (await res.json()).error || "Lỗi"; setError(msg); toast.error(msg); return; }
+    toast.success("Đã thêm đóng góp");
     setAmount(""); setNote("");
     onChanged();
   }
@@ -449,9 +458,10 @@ function GoalDetailView({
     if (!confirm(`Xoá mục tiêu "${goal.name}"? Các đóng góp sẽ giữ lại nhưng mục tiêu bị ẩn.`)) return;
     const res = await fetch(`/api/savings/${goal.id}`, { method: "DELETE" });
     if (!res.ok) {
-      alert((await res.json()).error || "Xoá thất bại");
+      toast.error((await res.json()).error || "Xoá thất bại");
       return;
     }
+    toast.success("Đã xoá mục tiêu");
     onDeleted();
   }
 
@@ -459,9 +469,10 @@ function GoalDetailView({
     if (!confirm(`Xoá đóng góp ${formatVND(c.amount)} của ${c.memberName}?`)) return;
     const res = await fetch(`/api/savings/${goal.id}/contributions/${c.id}`, { method: "DELETE" });
     if (!res.ok) {
-      alert((await res.json()).error || "Xoá thất bại");
+      toast.error((await res.json()).error || "Xoá thất bại");
       return;
     }
+    toast.success("Đã xoá đóng góp");
     onChanged();
   }
 

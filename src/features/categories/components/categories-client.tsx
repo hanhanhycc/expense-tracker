@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useToast } from "@/components/toast";
 
 type Cat = { id: string; name: string; kind: "INCOME" | "EXPENSE"; icon: string | null; color: string | null; isDefault: boolean };
 
@@ -9,6 +10,7 @@ export function CategoriesClient({ canManage }: { canManage: boolean }) {
   const [name, setName] = useState("");
   const [kind, setKind] = useState<"INCOME" | "EXPENSE">("EXPENSE");
   const [icon, setIcon] = useState("📦");
+  const toast = useToast();
 
   async function load() {
     const r = await fetch("/api/categories");
@@ -18,11 +20,17 @@ export function CategoriesClient({ canManage }: { canManage: boolean }) {
 
   async function add(e: React.FormEvent) {
     e.preventDefault();
-    await fetch("/api/categories", {
+    const r = await fetch("/api/categories", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ name, kind, icon }),
     });
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      toast.error(d.error || "Thêm danh mục thất bại");
+      return;
+    }
+    toast.success("Đã thêm danh mục");
     setName("");
     load();
   }
@@ -30,7 +38,11 @@ export function CategoriesClient({ canManage }: { canManage: boolean }) {
   async function remove(id: string) {
     if (!confirm("Xoá danh mục này?")) return;
     const r = await fetch(`/api/categories/${id}`, { method: "DELETE" });
-    if (!r.ok) alert((await r.json()).error || "Lỗi");
+    if (!r.ok) {
+      toast.error((await r.json()).error || "Xoá thất bại");
+      return;
+    }
+    toast.success("Đã xoá danh mục");
     load();
   }
 

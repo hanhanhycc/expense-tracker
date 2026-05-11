@@ -1,13 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import { useToast } from "@/components/toast";
 
 type Initial = { name: string; email: string; phone: string };
 
 export function ProfileForm({ initial }: { initial: Initial }) {
   const [form, setForm] = useState<Initial>(initial);
   const [loading, setLoading] = useState(false);
-  const [msg, setMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
+  const toast = useToast();
 
   function update<K extends keyof Initial>(k: K, v: string) {
     setForm((s) => ({ ...s, [k]: v }));
@@ -15,7 +16,6 @@ export function ProfileForm({ initial }: { initial: Initial }) {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setMsg(null);
     setLoading(true);
     const res = await fetch("/api/profile", {
       method: "PATCH",
@@ -25,10 +25,10 @@ export function ProfileForm({ initial }: { initial: Initial }) {
     setLoading(false);
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      setMsg({ type: "err", text: data.error || "Lưu thất bại" });
+      toast.error(data.error || "Lưu thất bại");
       return;
     }
-    setMsg({ type: "ok", text: "Đã lưu thông tin. Đăng xuất & đăng nhập lại nếu đổi email." });
+    toast.success("Đã lưu thông tin. Đăng xuất & đăng nhập lại nếu đổi email.");
   }
 
   return (
@@ -51,10 +51,6 @@ export function ProfileForm({ initial }: { initial: Initial }) {
           placeholder="Vd: 0901234567"
         />
       </div>
-
-      {msg && (
-        <p className={`text-sm ${msg.type === "ok" ? "text-success" : "text-danger"}`}>{msg.text}</p>
-      )}
 
       <button className="btn-primary" disabled={loading}>
         {loading ? "Đang lưu..." : "Lưu thay đổi"}

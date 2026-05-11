@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { formatVND } from "@/lib/money";
 import { formatDate } from "@/lib/date";
 import { TransactionForm, type TransactionFormInitial } from "@/features/transactions/components/transaction-form";
+import { useToast } from "@/components/toast";
 
 type Tx = {
   id: string;
@@ -28,6 +29,7 @@ export function HistoryClient({ currentMemberId }: { currentMemberId: string }) 
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Tx | null>(null);
+  const toast = useToast();
 
   const [filter, setFilter] = useState({ from: "", to: "", categoryId: "", memberId: "", visibility: "ALL", q: "" });
 
@@ -50,7 +52,13 @@ export function HistoryClient({ currentMemberId }: { currentMemberId: string }) 
 
   async function onDelete(id: string) {
     if (!confirm("Xoá giao dịch này?")) return;
-    await fetch(`/api/transactions/${id}`, { method: "DELETE" });
+    const res = await fetch(`/api/transactions/${id}`, { method: "DELETE" });
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}));
+      toast.error(d.error || "Xoá thất bại");
+      return;
+    }
+    toast.success("Đã xoá giao dịch");
     load();
   }
 
