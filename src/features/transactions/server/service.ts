@@ -4,10 +4,26 @@ import { Prisma, SplitType, Visibility } from "@prisma/client";
 import { deleteReceipt } from "@/lib/upload";
 import type { TransactionInput, TransactionFilter } from "./schema";
 
-export async function listTransactions(familyId: string, filter: TransactionFilter = {}) {
+/**
+ * Visibility scope cho 1 thành viên:
+ * - PERSONAL: chỉ người tạo thấy
+ * - SHARED: người tạo + người trả + các member trong `shares` thấy
+ */
+export function memberScopeFilter(memberId: string): Prisma.TransactionWhereInput {
+  return {
+    OR: [
+      { createdById: memberId },
+      { paidById: memberId },
+      { shares: { some: { memberId } } },
+    ],
+  };
+}
+
+export async function listTransactions(familyId: string, memberId: string, filter: TransactionFilter = {}) {
   const where: Prisma.TransactionWhereInput = {
     familyId,
     deletedAt: null,
+    AND: [memberScopeFilter(memberId)],
   };
   if (filter.categoryId) where.categoryId = filter.categoryId;
   if (filter.from || filter.to) {
@@ -16,11 +32,14 @@ export async function listTransactions(familyId: string, filter: TransactionFilt
     if (filter.to) (where.date as Prisma.DateTimeFilter).lte = new Date(filter.to);
   }
   if (filter.memberId) {
-    where.OR = [
-      { paidById: filter.memberId },
-      { createdById: filter.memberId },
-      { shares: { some: { memberId: filter.memberId } } },
-    ];
+    // Filter thêm theo member (paid/created/share). Vẫn nằm trong scope của session member.
+    (where.AND as Prisma.TransactionWhereInput[]).push({
+      OR: [
+        { paidById: filter.memberId },
+        { createdById: filter.memberId },
+        { shares: { some: { memberId: filter.memberId } } },
+      ],
+    });
   }
   if (filter.visibility && filter.visibility !== "ALL") {
     where.visibility = filter.visibility as Visibility;
@@ -90,9 +109,10 @@ export async function createTransaction(familyId: string, createdById: string, i
   });
 }
 
-export async function updateTransaction(familyId: string, id: string, input: TransactionInput) {
+export async function updateTransaction(familyId: string, memberId: string, id: string, input: TransactionInput) {
   const existing = await prisma.transaction.findFirst({ where: { id, familyId, deletedAt: null } });
   if (!existing) throw new Error("Không tìm thấy giao dịch");
+  if (existing.createdById !== memberId) throw new Error("Chỉ người tạo mới được sửa giao dịch này");
 
   await prisma.transactionShare.deleteMany({ where: { transactionId: id } });
 
@@ -127,9 +147,10 @@ export async function updateTransaction(familyId: string, id: string, input: Tra
   });
 }
 
-export async function softDeleteTransaction(familyId: string, id: string) {
-  const tx = await prisma.transaction.findFirst({ where: { id, familyId, deletedAt: null }, select: { receiptPath: true } });
+export async function softDeleteTransaction(familyId: string, memberId: string, id: string) {
+  const tx = await prisma.transaction.findFirst({ where: { id, familyId, deletedAt: null }, select: { receiptPath: true, createdById: true } });
   if (!tx) throw new Error("Không tìm thấy giao dịch");
+  if (tx.createdById !== memberId) throw new Error("Chỉ người tạo mới được xoá giao dịch này");
   if (tx.receiptPath) {
     try { await deleteReceipt(tx.receiptPath); } catch { /* ignore */ }
   }
@@ -139,9 +160,14 @@ export async function softDeleteTransaction(familyId: string, id: string) {
   });
 }
 
-export async function monthSummary(familyId: string, from: Date, to: Date) {
+export async function monthSummary(familyId: string, memberId: string, from: Date, to: Date) {
   const txs = await prisma.transaction.findMany({
-    where: { familyId, deletedAt: null, date: { gte: from, lte: to } },
+    where: {
+      familyId,
+      deletedAt: null,
+      date: { gte: from, lte: to },
+      AND: [memberScopeFilter(memberId)],
+    },
     select: { amount: true, type: true, visibility: true, categoryId: true, category: { select: { name: true, icon: true, color: true } } },
   });
   const income = sumMoney(txs.filter((t) => t.type === "INCOME").map((t) => t.amount.toString()));

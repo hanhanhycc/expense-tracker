@@ -14,9 +14,17 @@ export default async function DashboardPage() {
   const to = endOfMonth();
 
   const [summary, recent, goals] = await Promise.all([
-    monthSummary(familyId, from, to),
+    monthSummary(familyId, session.user.memberId, from, to),
     prisma.transaction.findMany({
-      where: { familyId, deletedAt: null },
+      where: {
+        familyId,
+        deletedAt: null,
+        OR: [
+          { createdById: session.user.memberId },
+          { paidById: session.user.memberId },
+          { shares: { some: { memberId: session.user.memberId } } },
+        ],
+      },
       include: { category: true, paidBy: { include: { user: true } } },
       orderBy: [{ date: "desc" }, { createdAt: "desc" }],
       take: 8,

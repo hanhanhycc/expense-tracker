@@ -1,16 +1,23 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { memberScopeFilter } from "@/features/transactions/server/service";
 
 export async function GET() {
   const session = await auth();
   if (!session?.user?.familyId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const familyId = session.user.familyId;
+  const memberId = session.user.memberId;
 
   const now = new Date();
   const start = new Date(now.getFullYear(), now.getMonth() - 11, 1);
   const txs = await prisma.transaction.findMany({
-    where: { familyId, deletedAt: null, date: { gte: start } },
+    where: {
+      familyId,
+      deletedAt: null,
+      date: { gte: start },
+      AND: [memberScopeFilter(memberId)],
+    },
     select: {
       amount: true,
       type: true,

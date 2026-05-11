@@ -7,12 +7,29 @@ async function getOwnedTx(familyId: string, id: string) {
   return prisma.transaction.findFirst({ where: { id, familyId, deletedAt: null } });
 }
 
+async function getScopedTx(familyId: string, memberId: string, id: string) {
+  return prisma.transaction.findFirst({
+    where: {
+      id,
+      familyId,
+      deletedAt: null,
+      OR: [
+        { createdById: memberId },
+        { paidById: memberId },
+        { shares: { some: { memberId } } },
+      ],
+    },
+  });
+}
+
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (!session?.user?.familyId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { id } = await params;
   const tx = await getOwnedTx(session.user.familyId, id);
   if (!tx) return NextResponse.json({ error: "Không tìm thấy giao dịch" }, { status: 404 });
+  if (tx.createdById !== session.user.memberId)
+    return NextResponse.json({ error: "Chỉ người tạo mới được đính kèm ảnh" }, { status: 403 });
 
   const form = await req.formData().catch(() => null);
   const file = form?.get("file");
@@ -30,7 +47,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const session = await auth();
   if (!session?.user?.familyId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { id } = await params;
-  const tx = await getOwnedTx(session.user.familyId, id);
+  const tx = await getScopedTx(session.user.familyId, session.user.memberId, id);
   if (!tx?.receiptPath) return NextResponse.json({ error: "Không có ảnh" }, { status: 404 });
 
   const data = await readReceipt(tx.receiptPath);
@@ -50,6 +67,8 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   const { id } = await params;
   const tx = await getOwnedTx(session.user.familyId, id);
   if (!tx) return NextResponse.json({ error: "Không tìm thấy giao dịch" }, { status: 404 });
+  if (tx.createdById !== session.user.memberId)
+    return NextResponse.json({ error: "Chỉ người tạo mới được xoá ảnh" }, { status: 403 });
   if (tx.receiptPath) await deleteReceipt(tx.receiptPath);
   await prisma.transaction.update({ where: { id }, data: { receiptPath: null } });
   return NextResponse.json({ ok: true });

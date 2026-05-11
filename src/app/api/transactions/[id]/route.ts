@@ -11,7 +11,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   const parsed = transactionInputSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: parsed.error.errors[0]?.message || "Dữ liệu không hợp lệ" }, { status: 400 });
   try {
-    await updateTransaction(session.user.familyId, id, parsed.data);
+    await updateTransaction(session.user.familyId, session.user.memberId, id, parsed.data);
     return NextResponse.json({ ok: true });
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 400 });
@@ -23,7 +23,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   if (!session?.user?.familyId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { id } = await params;
   try {
-    await softDeleteTransaction(session.user.familyId, id);
+    await softDeleteTransaction(session.user.familyId, session.user.memberId, id);
     return NextResponse.json({ ok: true });
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 400 });

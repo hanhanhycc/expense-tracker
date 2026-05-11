@@ -15,6 +15,7 @@ type Tx = {
   visibility: "PERSONAL" | "SHARED";
   splitType: "NONE" | "EQUAL" | "CUSTOM";
   paidById: string;
+  createdById: string;
   categoryId: string;
   receiptPath: string | null;
   category: { name: string; icon: string | null; color: string | null };
@@ -193,8 +194,14 @@ export function HistoryClient({ currentMemberId }: { currentMemberId: string }) 
                     {t.type === "INCOME" ? "+" : "-"}{formatVND(t.amount)}
                   </p>
                   <div className="flex gap-2 justify-end mt-1 text-xs">
-                    <button onClick={() => setEditing(t)} className="text-primary">Sửa</button>
-                    <button onClick={() => onDelete(t.id)} className="text-danger">Xoá</button>
+                    {t.createdById === currentMemberId ? (
+                      <>
+                        <button onClick={() => setEditing(t)} className="text-primary">Sửa</button>
+                        <button onClick={() => onDelete(t.id)} className="text-danger">Xoá</button>
+                      </>
+                    ) : (
+                      <span className="text-gray-400">Của {t.paidBy.user.name}</span>
+                    )}
                   </div>
                 </div>
               </li>
