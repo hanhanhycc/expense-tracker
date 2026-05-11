@@ -2,13 +2,15 @@
 
 import { useEffect, useState } from "react";
 
-type Member = { id: string; role: "OWNER" | "ADMIN" | "MEMBER"; user: { id: string; name: string; email: string } };
+type Role = "OWNER" | "ADMIN" | "MEMBER";
+type Member = { id: string; role: Role; user: { id: string; name: string; email: string } };
 
 export function MembersClient({ canManage, currentMemberId }: { canManage: boolean; currentMemberId: string }) {
   const [items, setItems] = useState<Member[]>([]);
   const [code, setCode] = useState<string | null>(null);
   const [role, setRole] = useState<"MEMBER" | "ADMIN">("MEMBER");
   const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
 
   async function load() {
     const r = await fetch("/api/members");
@@ -18,17 +20,42 @@ export function MembersClient({ canManage, currentMemberId }: { canManage: boole
 
   async function genInvite() {
     setLoading(true);
+    setErr(null);
     const r = await fetch("/api/invites", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ role }) });
     setLoading(false);
     if (r.ok) {
       const d = await r.json();
       setCode(d.code);
+    } else {
+      const d = await r.json().catch(() => ({}));
+      setErr(d.error || "Không tạo được mã mời");
     }
+  }
+
+  async function changeRole(id: string, newRole: "MEMBER" | "ADMIN") {
+    setErr(null);
+    const r = await fetch(`/api/members/${id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ role: newRole }),
+    });
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      setErr(d.error || "Đổi vai trò thất bại");
+      return;
+    }
+    load();
   }
 
   async function remove(id: string) {
     if (!confirm("Xoá thành viên này?")) return;
-    await fetch(`/api/members/${id}`, { method: "DELETE" });
+    setErr(null);
+    const r = await fetch(`/api/members/${id}`, { method: "DELETE" });
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      setErr(d.error || "Xoá thất bại");
+      return;
+    }
     load();
   }
 
@@ -59,26 +86,47 @@ export function MembersClient({ canManage, currentMemberId }: { canManage: boole
         </div>
       )}
 
+      {err && <p className="text-sm text-danger">{err}</p>}
+
       <div className="card !p-0">
         <ul className="divide-y">
-          {items.map((m) => (
-            <li key={m.id} className="p-4 flex items-center justify-between">
-              <div>
-                <p className="font-medium">{m.user.name} {m.id === currentMemberId && <span className="text-xs text-gray-400">(bạn)</span>}</p>
-                <p className="text-xs text-gray-500">{m.user.email}</p>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className={`chip ${m.role === "OWNER" ? "bg-yellow-100 text-yellow-800" : m.role === "ADMIN" ? "bg-primary/10 text-primary" : "bg-gray-100 text-gray-600"}`}>
-                  {m.role}
-                </span>
-                {canManage && m.role !== "OWNER" && m.id !== currentMemberId && (
-                  <button onClick={() => remove(m.id)} className="text-xs text-danger">Xoá</button>
-                )}
-              </div>
-            </li>
-          ))}
+          {items.map((m) => {
+            const isSelf = m.id === currentMemberId;
+            const isOwnerRow = m.role === "OWNER";
+            const canEditThis = canManage && !isOwnerRow && !isSelf;
+            return (
+              <li key={m.id} className="p-4 flex flex-col gap-2 desktop:flex-row desktop:items-center desktop:justify-between">
+                <div>
+                  <p className="font-medium">
+                    {m.user.name} {isSelf && <span className="text-xs text-gray-400">(bạn)</span>}
+                  </p>
+                  <p className="text-xs text-gray-500">{m.user.email}</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  {canEditThis ? (
+                    <select
+                      className="input !py-1.5 !w-auto text-xs"
+                      value={m.role}
+                      onChange={(e) => changeRole(m.id, e.target.value as "MEMBER" | "ADMIN")}
+                    >
+                      <option value="MEMBER">Thành viên</option>
+                      <option value="ADMIN">Quản trị</option>
+                    </select>
+                  ) : (
+                    <span className={`chip ${m.role === "OWNER" ? "bg-yellow-100 text-yellow-800" : m.role === "ADMIN" ? "bg-primary/10 text-primary" : "bg-gray-100 text-gray-600"}`}>
+                      {m.role}
+                    </span>
+                  )}
+                  {canEditThis && (
+                    <button onClick={() => remove(m.id)} className="text-xs text-danger">Xoá</button>
+                  )}
+                </div>
+              </li>
+            );
+          })}
         </ul>
       </div>
     </div>
   );
 }
+

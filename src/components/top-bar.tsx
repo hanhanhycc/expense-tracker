@@ -18,7 +18,7 @@ export function TopBar() {
           <span>Thu Chi</span>
         </Link>
 
-        <nav className="hidden md:flex items-center gap-2 text-sm">
+        <nav className="hidden desktop:flex items-center gap-2 text-sm">
           <Link href="/dashboard" className="px-3 py-2 hover:text-primary">Tổng quan</Link>
           <Link href="/history" className="px-3 py-2 hover:text-primary">Lịch sử</Link>
           <Link href="/savings" className="px-3 py-2 hover:text-primary">Tiết kiệm</Link>
@@ -35,8 +35,10 @@ export function TopBar() {
             {initial}
           </button>
           {open && (
-            <div className="absolute right-0 top-11 w-48 bg-white rounded-xl shadow-lg border py-1 text-sm">
+            <div className="absolute right-0 top-11 w-56 bg-white rounded-xl shadow-lg border py-1 text-sm">
               <div className="px-3 py-2 border-b text-gray-500 text-xs">{data?.user?.email}</div>
+              <Link href="/settings" className="block px-3 py-2 hover:bg-gray-50" onClick={() => setOpen(false)}>⚙️ Cài đặt</Link>
+              <Link href="/settings/profile" className="block px-3 py-2 hover:bg-gray-50" onClick={() => setOpen(false)}>👤 Thông tin cá nhân</Link>
               <Link href="/settings/members" className="block px-3 py-2 hover:bg-gray-50" onClick={() => setOpen(false)}>👥 Thành viên</Link>
               <Link href="/settings/categories" className="block px-3 py-2 hover:bg-gray-50" onClick={() => setOpen(false)}>🏷 Danh mục</Link>
               <button

@@ -3,6 +3,11 @@ export default {
   content: ["./src/**/*.{ts,tsx}"],
   theme: {
     extend: {
+      // `desktop` chỉ áp dụng cho desktop có chuột thật (pointer fine, ≥1280px).
+      // → Mọi thiết bị touch (mobile, iPad Pro, touch monitor) sẽ dùng layout mobile-first.
+      screens: {
+        desktop: { raw: "(min-width: 1280px) and (pointer: fine)" },
+      },
       colors: {
         primary: {
           DEFAULT: "#2563eb",
