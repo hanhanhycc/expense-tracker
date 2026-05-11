@@ -108,6 +108,48 @@ export function HistoryClient({ currentMemberId }: { currentMemberId: string }) 
         className="card grid grid-cols-2 md:grid-cols-3 gap-3"
         onSubmit={(e) => { e.preventDefault(); setApplied(filter); }}
       >
+        <div className="col-span-2 md:col-span-3 flex gap-2 overflow-x-auto -mx-1 px-1 pb-1">
+          {(() => {
+            const today = new Date();
+            const fmt = (d: Date) => d.toISOString().slice(0, 10);
+            const startOfWeek = new Date(today);
+            const day = (today.getDay() + 6) % 7; // Mon=0
+            startOfWeek.setDate(today.getDate() - day);
+            const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+            const start3m = new Date(today.getFullYear(), today.getMonth() - 2, 1);
+            const startYear = new Date(today.getFullYear(), 0, 1);
+            const presets: { label: string; from: string; to: string }[] = [
+              { label: "Tuần này", from: fmt(startOfWeek), to: fmt(today) },
+              { label: "Tháng này", from: fmt(startOfMonth), to: fmt(today) },
+              { label: "3 tháng", from: fmt(start3m), to: fmt(today) },
+              { label: "Từ đầu năm", from: fmt(startYear), to: fmt(today) },
+              { label: "Tất cả", from: "", to: "" },
+            ];
+            const apply = (p: { from: string; to: string }) => {
+              const next = { ...filter, from: p.from, to: p.to };
+              setFilter(next);
+              setApplied(next);
+            };
+            return presets.map((p) => {
+              const active = filter.from === p.from && filter.to === p.to;
+              return (
+                <button
+                  key={p.label}
+                  type="button"
+                  onClick={() => apply(p)}
+                  className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition ${
+                    active
+                      ? "bg-primary text-white border-primary shadow-[0_6px_18px_rgba(247,131,168,0.35)]"
+                      : "bg-white text-gray-700 border-rose-100 hover:bg-rose-50"
+                  }`}
+                >
+                  {p.label}
+                </button>
+              );
+            });
+          })()}
+        </div>
+
         <div>
           <label className="label">Từ ngày</label>
           <input type="date" className="input" value={filter.from} onChange={(e) => setFilter({ ...filter, from: e.target.value })} />

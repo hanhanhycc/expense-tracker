@@ -516,9 +516,11 @@ function GoalDetailView({
               const remain = Number(goal.targetAmount) - Number(goal.totalContributed);
               if (remain <= 0) return null;
               return (
-                <div className="absolute top-2 right-6 w-20 h-20 rounded-full bg-primary text-white flex flex-col items-center justify-center shadow-lg">
-                  <span className="text-xs font-bold leading-none">{formatVND(remain)}</span>
-                  <span className="text-[10px] opacity-90 mt-0.5">Còn lại</span>
+                <div className="absolute top-1 right-1 sm:top-2 sm:right-2 max-w-[45%] rounded-2xl bg-primary text-white px-3 py-2 shadow-lg text-center">
+                  <p className="text-[10px] uppercase tracking-wider opacity-90 leading-none">Còn lại</p>
+                  <p className="text-sm font-extrabold mt-1 tabular-nums leading-none whitespace-nowrap">
+                    {formatVND(remain)}
+                  </p>
                 </div>
               );
             })()}
