@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { formatVND, parseMoneyInput } from "@/lib/money";
 import { formatDate } from "@/lib/date";
 import { useToast } from "@/components/toast";
@@ -35,9 +36,15 @@ export function SavingsClient({
   currentMemberId: string;
   currentRole: "OWNER" | "ADMIN" | "MEMBER";
 }) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const openId = searchParams.get("id");
+  const setOpenId = (id: string | null) => {
+    if (id) router.push(`/savings?id=${id}`);
+    else router.push(`/savings`);
+  };
   const [goals, setGoals] = useState<Goal[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
-  const [openId, setOpenId] = useState<string | null>(null);
   const [detail, setDetail] = useState<GoalDetail | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [tab, setTab] = useState<"ALL" | "SHARED" | "PERSONAL">("ALL");
@@ -54,7 +61,10 @@ export function SavingsClient({
     loadGoals();
     fetch("/api/members").then((r) => r.json()).then((d) => setMembers(d.items || []));
   }, []);
-  useEffect(() => { if (openId) loadDetail(openId); }, [openId]);
+  useEffect(() => {
+    if (openId) loadDetail(openId);
+    else setDetail(null);
+  }, [openId]);
 
   if (openId && detail) {
     return (
