@@ -33,12 +33,14 @@ export function HistoryClient({ currentMemberId }: { currentMemberId: string }) 
   const [viewingReceipt, setViewingReceipt] = useState<Tx | null>(null);
   const toast = useToast();
 
-  const [filter, setFilter] = useState({ from: "", to: "", categoryId: "", memberId: "", visibility: "ALL", q: "" });
+  const initialFilter = { from: "", to: "", categoryId: "", memberId: "", visibility: "ALL", q: "" };
+  const [filter, setFilter] = useState(initialFilter);
+  const [applied, setApplied] = useState(initialFilter);
 
   async function load() {
     setLoading(true);
     const params = new URLSearchParams();
-    Object.entries(filter).forEach(([k, v]) => { if (v) params.set(k, v); });
+    Object.entries(applied).forEach(([k, v]) => { if (v) params.set(k, v); });
     const res = await fetch("/api/transactions?" + params.toString());
     const data = await res.json();
     setItems(data.items || []);
@@ -50,7 +52,7 @@ export function HistoryClient({ currentMemberId }: { currentMemberId: string }) 
     fetch("/api/members").then((r) => r.json()).then((d) => setMembers(d.items || []));
   }, []);
 
-  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [filter]);
+  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [applied]);
 
   async function onDelete(id: string) {
     if (!confirm("Xoá giao dịch này?")) return;
@@ -66,7 +68,7 @@ export function HistoryClient({ currentMemberId }: { currentMemberId: string }) 
 
   function exportUrl() {
     const params = new URLSearchParams();
-    Object.entries(filter).forEach(([k, v]) => { if (v) params.set(k, v); });
+    Object.entries(applied).forEach(([k, v]) => { if (v) params.set(k, v); });
     return "/api/export/transactions?" + params.toString();
   }
 
@@ -101,7 +103,10 @@ export function HistoryClient({ currentMemberId }: { currentMemberId: string }) 
         <a href={exportUrl()} className="btn-ghost text-sm">📤 Export CSV</a>
       </div>
 
-      <div className="card grid grid-cols-2 md:grid-cols-3 gap-3">
+      <form
+        className="card grid grid-cols-2 md:grid-cols-3 gap-3"
+        onSubmit={(e) => { e.preventDefault(); setApplied(filter); }}
+      >
         <div>
           <label className="label">Từ ngày</label>
           <input type="date" className="input" value={filter.from} onChange={(e) => setFilter({ ...filter, from: e.target.value })} />
@@ -136,7 +141,17 @@ export function HistoryClient({ currentMemberId }: { currentMemberId: string }) 
           <label className="label">Tìm ghi chú</label>
           <input className="input" value={filter.q} onChange={(e) => setFilter({ ...filter, q: e.target.value })} placeholder="..." />
         </div>
-      </div>
+        <div className="col-span-2 md:col-span-3 flex gap-2 justify-end pt-1">
+          <button
+            type="button"
+            className="btn-ghost text-sm"
+            onClick={() => { setFilter(initialFilter); setApplied(initialFilter); }}
+          >
+            Đặt lại
+          </button>
+          <button type="submit" className="btn-primary text-sm">🔍 Tìm kiếm</button>
+        </div>
+      </form>
 
       <div className="card !p-0">
         {loading ? (
