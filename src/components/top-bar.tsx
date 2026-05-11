@@ -15,7 +15,7 @@ export function TopBar() {
   useClickOutside({ enabled: open, onClose: () => setOpen(false), ref: menuRef });
 
   return (
-    <header className="sticky top-0 z-20 bg-white/80 backdrop-blur border-b">
+    <header className="sticky top-0 z-20 glass border-b border-white/30 rounded-none">
       <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
         <Link href="/dashboard" className="flex items-center gap-2 font-bold text-primary">
           <img src="/logo.svg" alt="Saving Money" className="h-7 w-7" />
@@ -43,7 +43,7 @@ export function TopBar() {
           {open && (
             <div
               role="menu"
-              className="absolute right-0 top-11 w-56 bg-white rounded-xl shadow-lg border py-1 text-sm"
+              className="absolute right-0 top-11 w-56 glass-strong rounded-2xl py-1 text-sm"
             >
               <div className="px-3 py-2 border-b text-gray-500 text-xs">{data?.user?.email}</div>
               <Link href="/settings" className="block px-3 py-2 hover:bg-gray-50" onClick={() => setOpen(false)}>⚙️ Cài đặt</Link>

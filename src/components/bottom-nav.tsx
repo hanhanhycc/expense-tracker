@@ -15,16 +15,16 @@ const items = [
 export function BottomNav() {
   const pathname = usePathname();
   return (
-    <nav className="fixed bottom-0 inset-x-0 z-30 border-t bg-white desktop:hidden">
+    <nav className="fixed bottom-3 inset-x-3 z-30 glass-strong rounded-2xl desktop:hidden">
       <ul className="grid grid-cols-5 h-16">
         {items.map((it) => {
           const active = pathname.startsWith(it.href);
           if (it.href === "/add") {
             return (
-              <li key={it.href} className="flex items-center justify-center -mt-6">
+              <li key={it.href} className="flex items-center justify-center -mt-7">
                 <Link
                   href="/add"
-                  className="w-14 h-14 rounded-full bg-primary text-white text-3xl flex items-center justify-center shadow-lg"
+                  className="w-14 h-14 rounded-full bg-primary text-white text-3xl flex items-center justify-center shadow-[0_8px_24px_rgba(239,90,90,0.45)]"
                   aria-label="Thêm giao dịch"
                 >
                   +

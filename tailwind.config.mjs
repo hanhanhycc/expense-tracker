@@ -10,10 +10,10 @@ export default {
       },
       colors: {
         primary: {
-          DEFAULT: "#2563eb",
-          50: "#eff6ff",
-          600: "#2563eb",
-          700: "#1d4ed8",
+          DEFAULT: "#EF5A5A",
+          50: "#fff1f1",
+          600: "#EF5A5A",
+          700: "#d94545",
         },
         success: { DEFAULT: "#16a34a", 50: "#f0fdf4" },
         danger: { DEFAULT: "#dc2626", 50: "#fef2f2" },
