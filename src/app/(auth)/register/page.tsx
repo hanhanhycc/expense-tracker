@@ -38,10 +38,10 @@ export default function RegisterPage() {
 
   return (
     <div className="card">
-      <div className="flex flex-col items-center mb-4">
-        <img src="/logo.svg" alt="Saving Money" className="h-16 w-16 mb-2" />
-        <h1 className="text-2xl font-bold">Đăng ký</h1>
-        <p className="text-gray-500 text-sm">Tạo tài khoản Saving Money miễn phí</p>
+      <div className="flex flex-col items-center mb-6">
+        <img src="/logo.svg" alt="Saving Money" className="h-24 w-24 mb-3 rounded-3xl shadow-[0_12px_30px_rgba(231,72,128,0.25)]" />
+        <h1 className="text-3xl font-extrabold tracking-tight">Im new!</h1>
+        <p className="text-gray-500 text-sm mt-0.5">Tạo tài khoản Saving Money miễn phí</p>
       </div>
       <form onSubmit={onSubmit} className="space-y-4">
         <div>

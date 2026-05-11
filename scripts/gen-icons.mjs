@@ -38,7 +38,7 @@ async function main() {
           width: t.size,
           height: t.size,
           channels: 4,
-          background: { r: 239, g: 90, b: 90, alpha: 1 },
+          background: { r: 247, g: 131, b: 168, alpha: 1 },
         },
       })
         .composite([{ input: innerPng, gravity: "center" }])

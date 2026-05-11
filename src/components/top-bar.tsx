@@ -15,25 +15,25 @@ export function TopBar() {
   useClickOutside({ enabled: open, onClose: () => setOpen(false), ref: menuRef });
 
   return (
-    <header className="sticky top-0 z-20 glass border-b border-white/30 rounded-none">
-      <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
-        <Link href="/dashboard" className="flex items-center gap-2 font-bold text-primary">
-          <img src="/logo.svg" alt="Saving Money" className="h-7 w-7" />
-          <span>Saving Money</span>
+    <header className="sticky top-0 z-20 bg-white/80 backdrop-blur-md border-b border-rose-100">
+      <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
+        <Link href="/dashboard" className="flex items-center gap-2 font-bold text-primary-700">
+          <img src="/logo.svg" alt="Saving Money" className="h-9 w-9 rounded-xl" />
+          <span className="text-lg tracking-tight">Saving Money</span>
         </Link>
 
-        <nav className="hidden desktop:flex items-center gap-2 text-sm">
-          <Link href="/dashboard" className="px-3 py-2 hover:text-primary">Tổng quan</Link>
-          <Link href="/history" className="px-3 py-2 hover:text-primary">Lịch sử</Link>
-          <Link href="/savings" className="px-3 py-2 hover:text-primary">Tiết kiệm</Link>
-          <Link href="/reports" className="px-3 py-2 hover:text-primary">Báo cáo</Link>
-          <Link href="/add" className="btn-primary !py-1.5 !px-3">+ Thêm</Link>
+        <nav className="hidden desktop:flex items-center gap-1 text-sm">
+          <NavLink href="/dashboard">Tổng quan</NavLink>
+          <NavLink href="/history">Lịch sử</NavLink>
+          <NavLink href="/savings">Tiết kiệm</NavLink>
+          <NavLink href="/reports">Báo cáo</NavLink>
+          <Link href="/add" className="btn-primary !py-2 !px-4 ml-2">+ Thêm</Link>
         </nav>
 
         <div className="relative" ref={menuRef}>
           <button
             onClick={() => setOpen((o) => !o)}
-            className="w-9 h-9 rounded-full bg-primary/10 text-primary font-bold"
+            className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-primary-700 text-white font-bold shadow-[0_6px_16px_rgba(247,131,168,0.4)]"
             aria-label="Tài khoản"
             aria-haspopup="menu"
             aria-expanded={open}
@@ -61,5 +61,13 @@ export function TopBar() {
         </div>
       </div>
     </header>
+  );
+}
+
+function NavLink({ href, children }: { href: string; children: React.ReactNode }) {
+  return (
+    <Link href={href} className="px-3 py-2 rounded-full text-gray-600 hover:text-primary-700 hover:bg-rose-50 transition">
+      {children}
+    </Link>
   );
 }

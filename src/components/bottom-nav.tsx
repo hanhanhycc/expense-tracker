@@ -15,17 +15,18 @@ const items = [
 export function BottomNav() {
   const pathname = usePathname();
   return (
-    <nav className="fixed bottom-3 inset-x-3 z-30 glass-strong rounded-2xl desktop:hidden">
-      <ul className="grid grid-cols-5 h-16">
+    <nav className="fixed bottom-4 left-1/2 -translate-x-1/2 z-30 desktop:hidden">
+      <ul className="flex items-center gap-1 px-2 h-16 rounded-full bg-gray-900 text-white shadow-[0_12px_40px_rgba(0,0,0,0.25)] border border-white/10">
         {items.map((it) => {
           const active = pathname.startsWith(it.href);
           if (it.href === "/add") {
             return (
-              <li key={it.href} className="flex items-center justify-center -mt-7">
+              <li key={it.href} className="px-1">
                 <Link
                   href="/add"
-                  className="w-14 h-14 rounded-full bg-primary text-white text-3xl flex items-center justify-center shadow-[0_8px_24px_rgba(239,90,90,0.45)]"
                   aria-label="Thêm giao dịch"
+                  className="w-12 h-12 -mt-8 rounded-full flex items-center justify-center text-white text-2xl shadow-[0_10px_24px_rgba(247,131,168,0.55)]"
+                  style={{ background: "linear-gradient(135deg,#F783A8,#E64980)" }}
                 >
                   +
                 </Link>
@@ -36,16 +37,13 @@ export function BottomNav() {
             <li key={it.href}>
               <Link
                 href={it.href}
+                aria-label={it.label}
                 className={clsx(
-                  "h-full flex flex-col items-center justify-center gap-0.5 text-xs transition relative",
-                  active ? "text-primary font-semibold" : "text-gray-500 hover:text-gray-800"
+                  "w-12 h-12 rounded-full flex flex-col items-center justify-center text-[10px] gap-0.5 transition",
+                  active ? "bg-white text-gray-900 font-semibold" : "text-white/70 hover:text-white"
                 )}
               >
-                {active && (
-                  <span className="absolute top-1.5 w-8 h-1 rounded-full bg-primary" />
-                )}
-                <span className="text-lg mt-1">{it.icon}</span>
-                <span>{it.label}</span>
+                <span className="text-lg leading-none">{it.icon}</span>
               </Link>
             </li>
           );

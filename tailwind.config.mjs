@@ -10,13 +10,20 @@ export default {
       },
       colors: {
         primary: {
-          DEFAULT: "#EF5A5A",
-          50: "#fff1f1",
-          600: "#EF5A5A",
-          700: "#d94545",
+          DEFAULT: "#F783A8",
+          50: "#FFF0F6",
+          100: "#FFDEEB",
+          400: "#FAA2C1",
+          600: "#F783A8",
+          700: "#E64980",
+        },
+        rose: {
+          50: "#FFF5F8",
+          100: "#FFE4EC",
+          200: "#FFCEDC",
         },
         success: { DEFAULT: "#16a34a", 50: "#f0fdf4" },
-        danger: { DEFAULT: "#dc2626", 50: "#fef2f2" },
+        danger: { DEFAULT: "#E64980", 50: "#FFF0F6" },
       },
       fontFamily: {
         sans: ["var(--font-inter)", "system-ui", "-apple-system", "Segoe UI", "Roboto", "sans-serif"],

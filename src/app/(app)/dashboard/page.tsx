@@ -38,23 +38,28 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-5">
-      <div>
-        <p className="text-xs uppercase tracking-wider text-gray-500">Tháng này</p>
-        <h1 className="text-2xl font-bold tracking-tight">Tổng quan tài chính</h1>
-      </div>
+      {/* Hero pink card with circular ring */}
+      <div className="card-pink relative overflow-hidden">
+        <div className="flex items-start justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-wider text-primary-700/70 font-semibold">Tháng này</p>
+            <h1 className="text-2xl font-extrabold tracking-tight text-gray-900 mt-1">Số dư của bạn</h1>
+          </div>
+          <span className="chip bg-white text-primary-700 shadow-sm">VND</span>
+        </div>
 
-      {/* Hero balance */}
-      <div className="card !p-6 relative overflow-hidden">
-        <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-primary/30 blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-10 -left-10 w-40 h-40 rounded-full bg-blue-300/30 blur-3xl pointer-events-none" />
-        <div className="relative">
-          <p className="text-xs uppercase tracking-wider text-gray-500">Số dư</p>
-          <p className={`text-4xl font-bold tracking-tight mt-1 ${Number(summary.balance) >= 0 ? "text-gray-900" : "text-danger"}`}>
-            {formatVND(summary.balance)}
-          </p>
-          <div className="grid grid-cols-2 gap-3 mt-5">
-            <MiniStat label="Thu nhập" value={summary.income} variant="income" />
-            <MiniStat label="Chi tiêu" value={summary.expense} variant="expense" />
+        <div className="mt-6 flex items-center justify-center">
+          <BalanceRing income={Number(summary.income)} expense={Number(summary.expense)} />
+        </div>
+
+        <div className="mt-6 grid grid-cols-2 gap-3 text-sm">
+          <div className="bg-white/70 rounded-2xl px-4 py-3">
+            <p className="text-gray-500 text-xs">Thu nhập</p>
+            <p className="font-bold text-success mt-0.5">↑ {formatVND(summary.income)}</p>
+          </div>
+          <div className="bg-white/70 rounded-2xl px-4 py-3">
+            <p className="text-gray-500 text-xs">Chi tiêu</p>
+            <p className="font-bold text-danger mt-0.5">↓ {formatVND(summary.expense)}</p>
           </div>
         </div>
       </div>
@@ -65,18 +70,18 @@ export default async function DashboardPage() {
       </div>
 
       <div className="card">
-        <h2 className="font-semibold mb-3">Top danh mục chi nhiều nhất</h2>
+        <h2 className="font-bold text-lg mb-3">Top danh mục chi</h2>
         {summary.topCategories.length === 0 ? (
           <p className="text-sm text-gray-500">Chưa có giao dịch nào tháng này.</p>
         ) : (
-          <ul className="space-y-2.5">
+          <ul className="space-y-3">
             {summary.topCategories.map((c) => (
               <li key={c.id} className="flex items-center justify-between text-sm">
                 <span className="flex items-center gap-2.5">
-                  <span className="w-2.5 h-2.5 rounded-full" style={{ background: c.color || "#6b7280" }} />
+                  <span className="w-2.5 h-2.5 rounded-full" style={{ background: c.color || "#F783A8" }} />
                   <span className="font-medium">{c.name}</span>
                 </span>
-                <span className="font-semibold text-gray-700">{formatVND(c.total)}</span>
+                <span className="font-bold text-gray-800">{formatVND(c.total)}</span>
               </li>
             ))}
           </ul>
@@ -85,28 +90,28 @@ export default async function DashboardPage() {
 
       <div className="card">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="font-semibold">Giao dịch gần đây</h2>
-          <Link href="/history" className="text-sm text-primary font-medium">Xem tất cả →</Link>
+          <h2 className="font-bold text-lg">Chi tiêu gần đây</h2>
+          <Link href="/history" className="text-sm text-primary-700 font-semibold">Xem tất cả →</Link>
         </div>
         {recent.length === 0 ? (
-          <p className="text-sm text-gray-500">Chưa có giao dịch. <Link href="/add" className="text-primary">Thêm ngay</Link></p>
+          <p className="text-sm text-gray-500">Chưa có giao dịch. <Link href="/add" className="text-primary-700 font-semibold">Thêm ngay</Link></p>
         ) : (
-          <ul className="divide-y divide-gray-100/60">
+          <ul className="space-y-3">
             {recent.map((t) => (
-              <li key={t.id} className="py-3 flex items-center justify-between">
+              <li key={t.id} className="flex items-center justify-between">
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-10 h-10 rounded-xl bg-white/60 backdrop-blur flex items-center justify-center text-lg shrink-0 border border-white/50">
+                  <div className="w-12 h-12 rounded-2xl bg-rose-50 border border-rose-100 flex items-center justify-center text-xl shrink-0">
                     {t.category.icon || (t.type === "INCOME" ? "💰" : "💸")}
                   </div>
                   <div className="min-w-0">
-                    <p className="text-sm font-medium truncate">{t.category.name}</p>
+                    <p className="text-sm font-bold truncate">{t.category.name}</p>
                     <p className="text-xs text-gray-500 truncate">
                       {formatDate(t.date)} · {t.paidBy.user.name}
                       {t.note ? ` · ${t.note}` : ""}
                     </p>
                   </div>
                 </div>
-                <span className={`text-sm font-semibold shrink-0 ${t.type === "INCOME" ? "text-success" : "text-danger"}`}>
+                <span className={`text-sm font-bold shrink-0 ${t.type === "INCOME" ? "text-success" : "text-gray-900"}`}>
                   {t.type === "INCOME" ? "+" : "-"}{formatVND(t.amount.toString())}
                 </span>
               </li>
@@ -118,8 +123,8 @@ export default async function DashboardPage() {
       {goals.length > 0 && (
         <div className="card">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="font-semibold">Mục tiêu đang chạy</h2>
-            <Link href="/savings" className="text-sm text-primary font-medium">Xem →</Link>
+            <h2 className="font-bold text-lg">Mục tiêu đang chạy</h2>
+            <Link href="/savings" className="text-sm text-primary-700 font-semibold">Xem →</Link>
           </div>
           <ul className="space-y-4">
             {goals.map((g) => {
@@ -129,16 +134,13 @@ export default async function DashboardPage() {
               return (
                 <li key={g.id}>
                   <div className="flex justify-between text-sm mb-1.5">
-                    <span className="font-medium">🎯 {g.name}</span>
-                    <span className="text-gray-500 font-medium">{pct.toFixed(1)}%</span>
+                    <span className="font-bold">🎯 {g.name}</span>
+                    <span className="text-primary-700 font-bold">{pct.toFixed(0)}%</span>
                   </div>
-                  <div className="h-2.5 bg-white/40 rounded-full overflow-hidden border border-white/40">
+                  <div className="h-2.5 bg-rose-100 rounded-full overflow-hidden">
                     <div
                       className="h-full rounded-full transition-all"
-                      style={{
-                        width: `${pct}%`,
-                        background: "linear-gradient(90deg, #FF8E8E, #EF5A5A)",
-                      }}
+                      style={{ width: `${pct}%`, background: "linear-gradient(90deg,#F783A8,#E64980)" }}
                     />
                   </div>
                   <p className="text-xs text-gray-500 mt-1.5">{formatVND(total)} / {formatVND(target)}</p>
@@ -154,25 +156,53 @@ export default async function DashboardPage() {
 
 function Stat({ label, value, icon }: { label: string; value: string; icon: string }) {
   return (
-    <div className="card">
+    <div className="card !p-4">
       <div className="flex items-center gap-2 text-xs text-gray-500">
         <span>{icon}</span>
         <span>{label}</span>
       </div>
-      <p className="text-lg font-bold mt-1.5 tracking-tight">{formatVND(value)}</p>
+      <p className="text-base font-bold mt-1.5 tracking-tight">{formatVND(value)}</p>
     </div>
   );
 }
 
-function MiniStat({ label, value, variant }: { label: string; value: string; variant: "income" | "expense" }) {
-  const color = variant === "income" ? "text-success" : "text-danger";
-  const arrow = variant === "income" ? "↑" : "↓";
+function BalanceRing({ income, expense }: { income: number; expense: number }) {
+  const balance = income - expense;
+  const size = 200;
+  const stroke = 14;
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  const total = income + expense;
+  const savedPct = total > 0 ? Math.min(100, (income / total) * 100) : 0;
+  const dash = (savedPct / 100) * c;
+
   return (
-    <div>
-      <p className="text-xs text-gray-500">{label}</p>
-      <p className={`text-base font-bold mt-0.5 ${color}`}>
-        {arrow} {formatVND(value)}
-      </p>
+    <div className="relative" style={{ width: size, height: size }}>
+      <svg width={size} height={size} className="-rotate-90">
+        <circle cx={size / 2} cy={size / 2} r={r} stroke="#FFFFFF" strokeOpacity="0.6" strokeWidth={stroke} fill="none" />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          stroke="url(#ringGrad)"
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          fill="none"
+          strokeDasharray={`${dash} ${c - dash}`}
+        />
+        <defs>
+          <linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor="#F783A8" />
+            <stop offset="100%" stopColor="#E64980" />
+          </linearGradient>
+        </defs>
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+        <p className="text-xs text-gray-500">Số dư</p>
+        <p className={`text-2xl font-extrabold tracking-tight ${balance >= 0 ? "text-gray-900" : "text-danger"}`}>
+          {formatVND(String(balance))}
+        </p>
+      </div>
     </div>
   );
 }
