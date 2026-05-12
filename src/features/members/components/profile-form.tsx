@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useToast } from "@/components/toast";
+import { ANIMAL_PRESETS } from "@/lib/avatar-presets";
 
 type Initial = { name: string; email: string; phone: string };
 
@@ -60,6 +61,24 @@ function AvatarSection() {
     toast.success("Đã xoá ảnh đại diện");
   }
 
+  async function pickPreset(key: string) {
+    setLoading(true);
+    const res = await fetch("/api/profile/avatar", {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ preset: key }),
+    });
+    setLoading(false);
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}));
+      toast.error(d.error || "Đặt avatar thất bại");
+      return;
+    }
+    setHasAvatar(true);
+    setVersion(Date.now());
+    toast.success("Đã đổi ảnh đại diện");
+  }
+
   return (
     <div className="card max-w-xl space-y-3">
       <h2 className="font-semibold">Ảnh đại diện</h2>
@@ -84,7 +103,7 @@ function AvatarSection() {
             disabled={loading}
             className="btn-primary text-sm !py-2 !px-3"
           >
-            {loading ? "Đang tải..." : "Đổi ảnh"}
+            {loading ? "Đang tải..." : "Tải ảnh lên"}
           </button>
           {hasAvatar && (
             <button type="button" onClick={removeAvatar} className="text-xs text-danger underline">
@@ -100,7 +119,26 @@ function AvatarSection() {
           />
         </div>
       </div>
-      <p className="text-xs text-gray-500">Chấp nhận JPG/PNG/WEBP, tối đa 4MB.</p>
+      <p className="text-xs text-gray-500">JPG/PNG/WEBP, tối đa 4MB.</p>
+
+      <div>
+        <p className="text-xs font-medium text-gray-700 mb-2">Hoặc chọn một con vật:</p>
+        <div className="grid grid-cols-6 sm:grid-cols-10 gap-2">
+          {ANIMAL_PRESETS.map((p) => (
+            <button
+              key={p.key}
+              type="button"
+              onClick={() => pickPreset(p.key)}
+              disabled={loading}
+              title={p.label}
+              className="aspect-square rounded-full border border-rose-100 flex items-center justify-center text-2xl hover:ring-2 hover:ring-primary transition disabled:opacity-50"
+              style={{ background: p.bg }}
+            >
+              {p.emoji}
+            </button>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

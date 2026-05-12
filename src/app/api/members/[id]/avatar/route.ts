@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { readAvatar } from "@/lib/upload";
+import { getPresetFromPath, isPresetPath, renderPresetSvg } from "@/lib/avatar-presets";
 
 // Trả ảnh avatar của một thành viên (theo memberId), bắt buộc cùng family
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -12,8 +13,22 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     where: { id, familyId: session.user.familyId },
     select: { user: { select: { avatarPath: true } } },
   });
-  if (!member?.user.avatarPath) return new NextResponse(null, { status: 404 });
-  const file = await readAvatar(member.user.avatarPath);
+  const avatarPath = member?.user.avatarPath;
+  if (!avatarPath) return new NextResponse(null, { status: 404 });
+
+  if (isPresetPath(avatarPath)) {
+    const preset = getPresetFromPath(avatarPath);
+    if (!preset) return new NextResponse(null, { status: 404 });
+    return new NextResponse(renderPresetSvg(preset), {
+      status: 200,
+      headers: {
+        "content-type": "image/svg+xml; charset=utf-8",
+        "cache-control": "private, max-age=0, must-revalidate",
+      },
+    });
+  }
+
+  const file = await readAvatar(avatarPath);
   if (!file) return new NextResponse(null, { status: 404 });
   return new NextResponse(file.buf as unknown as BodyInit, {
     status: 200,
