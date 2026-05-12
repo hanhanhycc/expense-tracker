@@ -170,11 +170,11 @@ export function SavingsClient({
           );
         }
         return (
-          <ul className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <ul className="grid grid-cols-1 md:grid-cols-2 gap-3 items-stretch">
             {filtered.map((g) => (
-              <li key={g.id}>
-                <button onClick={() => setOpenId(g.id)} className="w-full text-left card hover:shadow-md transition">
-                  <div className="flex items-start gap-4">
+              <li key={g.id} className="h-full">
+                <button onClick={() => setOpenId(g.id)} className="w-full h-full text-left card hover:shadow-md transition">
+                  <div className="flex items-start gap-4 h-full">
                     <DonutProgress percent={g.progress} size={84} stroke={10} />
                     <div className="min-w-0 flex-1">
                       <p className="font-bold truncate">
