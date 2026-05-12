@@ -48,6 +48,11 @@ enum GoalStatus {
   ARCHIVED
 }
 
+enum BudgetScope {
+  PERSONAL // ngân sách riêng của 1 member
+  SHARED   // ngân sách chung của cả family
+}
+
 // ─────────────────────────────────────────────────────────────
 // Auth & Family
 // ─────────────────────────────────────────────────────────────
@@ -97,6 +102,7 @@ model FamilyMember {
   shares              TransactionShare[]
   goalMemberships     SavingGoalMember[]
   contributions       SavingContribution[]
+  budgets             Budget[]
 
   @@unique([userId, familyId])
   @@index([familyId])
@@ -148,18 +154,25 @@ model Category {
 // ─────────────────────────────────────────────────────────────
 
 model Budget {
-  id         String   @id @default(cuid())
+  id         String      @id @default(cuid())
   familyId   String
   categoryId String
-  month      DateTime @db.Date // luôn ngày đầu tháng UTC, ví dụ 2026-05-01
-  amount     Decimal  @db.Decimal(18, 2)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  month      DateTime    @db.Date // luôn ngày đầu tháng UTC, ví dụ 2026-05-01
+  amount     Decimal     @db.Decimal(18, 2)
+  scope      BudgetScope @default(SHARED)
+  // null ⇒ ngân sách chung (scope=SHARED). Có giá trị ⇒ ngân sách riêng member đó (scope=PERSONAL).
+  memberId   String?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
 
-  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  category Category      @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  member   FamilyMember? @relation(fields: [memberId], references: [id], onDelete: Cascade)
 
-  @@unique([familyId, categoryId, month])
+  // Postgres coi NULL distinct ⇒ unique không bảo vệ được SHARED trùng;
+  // logic upsert ở service xử lý bằng cach query trước khi insert.
+  @@unique([familyId, categoryId, month, memberId])
   @@index([familyId, month])
+  @@index([memberId])
   @@map("budgets")
 }
 

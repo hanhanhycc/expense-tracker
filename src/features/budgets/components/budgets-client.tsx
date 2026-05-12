@@ -14,10 +14,14 @@ type Item = {
   categoryIcon: string | null;
   categoryColor: string | null;
   month: string;
+  scope: "PERSONAL" | "SHARED";
+  memberId: string | null;
   amount: string;
   spent: string;
   percent: number;
 };
+
+type Scope = "PERSONAL" | "SHARED";
 
 function currentMonth() {
   const d = new Date();
@@ -37,21 +41,25 @@ function formatMonthVN(month: string) {
 
 export function BudgetsClient({ canManage }: { canManage: boolean }) {
   const [month, setMonth] = useState<string>(currentMonth());
+  const [scope, setScope] = useState<Scope>("PERSONAL");
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<{ categoryId: string; amount: string } | null>(null);
   const [saving, setSaving] = useState(false);
   const toast = useToast();
 
-  async function load(m: string) {
+  // Ngân sách chung chỉ ADMIN/OWNER được sửa; ngân sách cá nhân ai cũng sửa được.
+  const canEdit = scope === "PERSONAL" ? true : canManage;
+
+  async function load(m: string, s: Scope) {
     setLoading(true);
-    const r = await fetch(`/api/budgets?month=${m}`);
+    const r = await fetch(`/api/budgets?month=${m}&scope=${s}`);
     const d = await r.json();
     setItems(d.items || []);
     setLoading(false);
   }
 
-  useEffect(() => { load(month); }, [month]);
+  useEffect(() => { load(month, scope); }, [month, scope]);
 
   async function save() {
     if (!editing) return;
@@ -63,6 +71,7 @@ export function BudgetsClient({ canManage }: { canManage: boolean }) {
         categoryId: editing.categoryId,
         month,
         amount: Number(editing.amount || "0"),
+        scope,
       }),
     });
     setSaving(false);
@@ -74,7 +83,7 @@ export function BudgetsClient({ canManage }: { canManage: boolean }) {
     haptic("light");
     toast.success("Đã lưu ngân sách");
     setEditing(null);
-    load(month);
+    load(month, scope);
   }
 
   const totalBudget = items.reduce((s, i) => s + Number(i.amount), 0);
@@ -82,10 +91,22 @@ export function BudgetsClient({ canManage }: { canManage: boolean }) {
   const totalPercent = totalBudget > 0 ? Math.min(999, (totalSpent / totalBudget) * 100) : 0;
 
   return (
-    <PullToRefresh onRefresh={() => load(month)}>
+    <PullToRefresh onRefresh={() => load(month, scope)}>
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold">Ngân sách</h1>
+      </div>
+
+      {/* Tabs cá nhân / chung */}
+      <div className="flex gap-1 p-1 bg-rose-50 rounded-full">
+        <button
+          onClick={() => setScope("PERSONAL")}
+          className={`flex-1 py-2 text-sm font-bold rounded-full transition ${scope === "PERSONAL" ? "bg-white text-primary-700 shadow-sm" : "text-gray-500"}`}
+        >✍️ Của tôi</button>
+        <button
+          onClick={() => setScope("SHARED")}
+          className={`flex-1 py-2 text-sm font-bold rounded-full transition ${scope === "SHARED" ? "bg-white text-primary-700 shadow-sm" : "text-gray-500"}`}
+        >👪 Chung</button>
       </div>
 
       <div className="card flex items-center justify-between gap-3">
@@ -165,7 +186,7 @@ export function BudgetsClient({ canManage }: { canManage: boolean }) {
                         <p className="text-xs text-gray-400 mt-0.5">Chưa đặt ngân sách</p>
                       )}
                     </div>
-                    {canManage && (
+                    {canEdit && (
                       <button
                         onClick={() => setEditing({ categoryId: b.categoryId, amount: Number(b.amount) > 0 ? b.amount : "" })}
                         className="text-xs text-primary-700 font-bold shrink-0 px-2 py-1 rounded-full hover:bg-rose-50"
@@ -187,10 +208,12 @@ export function BudgetsClient({ canManage }: { canManage: boolean }) {
           onClick={() => !saving && setEditing(null)}
         >
           <div className="bg-white rounded-3xl w-full max-w-sm p-5" onClick={(e) => e.stopPropagation()}>
-            <h3 className="font-bold text-lg mb-3">
+            <h3 className="font-bold text-lg mb-1">
               Ngân sách: {items.find((i) => i.categoryId === editing.categoryId)?.categoryName}
             </h3>
-            <p className="text-xs text-gray-500 mb-3">{formatMonthVN(month)}</p>
+            <p className="text-xs text-gray-500 mb-3">
+              {scope === "PERSONAL" ? "Của tôi · " : "Chung · "}{formatMonthVN(month)}
+            </p>
             <MoneyInput
               className="input"
               value={editing.amount}

@@ -177,21 +177,57 @@ export async function monthSummary(familyId: string, memberId: string, from: Dat
       date: { gte: from, lte: to },
       AND: [memberScopeFilter(memberId)],
     },
-    select: { amount: true, type: true, visibility: true, categoryId: true, category: { select: { name: true, icon: true, color: true } } },
+    select: {
+      amount: true,
+      type: true,
+      visibility: true,
+      categoryId: true,
+      createdById: true,
+      shares: { select: { memberId: true, amount: true } },
+      category: { select: { name: true, icon: true, color: true } },
+    },
   });
-  const income = sumMoney(txs.filter((t) => t.type === "INCOME").map((t) => t.amount.toString()));
-  const expense = sumMoney(txs.filter((t) => t.type === "EXPENSE").map((t) => t.amount.toString()));
-  const personalExpense = sumMoney(txs.filter((t) => t.type === "EXPENSE" && t.visibility === "PERSONAL").map((t) => t.amount.toString()));
-  const sharedExpense = sumMoney(txs.filter((t) => t.type === "EXPENSE" && t.visibility === "SHARED").map((t) => t.amount.toString()));
 
-  // top categories chi
-  const map = new Map<string, { name: string; color: string | null; total: ReturnType<typeof toDecimal> }>();
-  for (const t of txs) {
-    if (t.type !== "EXPENSE") continue;
-    const cur = map.get(t.categoryId) ?? { name: t.category.name, color: t.category.color, total: toDecimal(0) };
-    cur.total = cur.total.plus(t.amount.toString());
-    map.set(t.categoryId, cur);
+  /**
+   * Phần thuộc về `memberId` trong giao dịch:
+   * - PERSONAL: full amount nếu là người tạo, ngược lại 0.
+   * - SHARED: số tiền trong shares của member (0 nếu không có).
+   * Tránh tình huống ai trả ai chia đều bị log full amount.
+   */
+  function memberPart(t: (typeof txs)[number]): string {
+    if (t.visibility === "PERSONAL") {
+      return t.createdById === memberId ? t.amount.toString() : "0";
+    }
+    const s = t.shares.find((x) => x.memberId === memberId);
+    return s ? s.amount.toString() : "0";
   }
+
+  const incomeParts: string[] = [];
+  const expenseParts: string[] = [];
+  const personalExpenseParts: string[] = [];
+  const sharedExpenseParts: string[] = [];
+  const map = new Map<string, { name: string; color: string | null; total: ReturnType<typeof toDecimal> }>();
+
+  for (const t of txs) {
+    const part = memberPart(t);
+    if (part === "0") continue;
+    if (t.type === "INCOME") {
+      incomeParts.push(part);
+    } else {
+      expenseParts.push(part);
+      if (t.visibility === "PERSONAL") personalExpenseParts.push(part);
+      else sharedExpenseParts.push(part);
+      const cur = map.get(t.categoryId) ?? { name: t.category.name, color: t.category.color, total: toDecimal(0) };
+      cur.total = cur.total.plus(part);
+      map.set(t.categoryId, cur);
+    }
+  }
+
+  const income = sumMoney(incomeParts);
+  const expense = sumMoney(expenseParts);
+  const personalExpense = sumMoney(personalExpenseParts);
+  const sharedExpense = sumMoney(sharedExpenseParts);
+
   const topCategories = Array.from(map.entries())
     .map(([id, v]) => ({ id, name: v.name, color: v.color, total: v.total.toString() }))
     .sort((a, b) => Number(b.total) - Number(a.total))

@@ -1,7 +1,7 @@
 import { requireAuth } from "@/lib/guards";
 import { prisma } from "@/lib/db";
 import { monthSummary } from "@/features/transactions/server/service";
-import { topBudgets } from "@/features/budgets/server/service";
+import { topPersonalBudgets } from "@/features/budgets/server/service";
 import { endOfMonth, startOfMonth, formatDate } from "@/lib/date";
 import { formatVND } from "@/lib/money";
 import Link from "next/link";
@@ -44,7 +44,7 @@ export default async function DashboardPage() {
       include: { contributions: true },
       take: 5,
     }),
-    topBudgets(familyId, monthStr, 4),
+    topPersonalBudgets(familyId, session.user.memberId, monthStr, 4),
   ]);
 
   return (

@@ -53,8 +53,10 @@ export async function GET(req: Request) {
         type: true,
         visibility: true,
         date: true,
+        createdById: true,
         paidById: true,
         paidBy: { include: { user: true } },
+        shares: { select: { memberId: true, amount: true } },
         category: { select: { name: true, color: true, icon: true } },
       },
     }),
@@ -65,18 +67,59 @@ export async function GET(req: Request) {
         date: { gte: prevFrom, lte: prevTo },
         AND: [memberScopeFilter(memberId)],
       },
-      select: { amount: true, type: true },
+      select: {
+        amount: true,
+        type: true,
+        visibility: true,
+        createdById: true,
+        shares: { select: { memberId: true, amount: true } },
+      },
     }),
   ]);
 
-  // Period totals
-  const income = txs.filter((t) => t.type === "INCOME").reduce((s, t) => s + Number(t.amount), 0);
-  const expense = txs.filter((t) => t.type === "EXPENSE").reduce((s, t) => s + Number(t.amount), 0);
-  const sharedExpense = txs.filter((t) => t.type === "EXPENSE" && t.visibility === "SHARED").reduce((s, t) => s + Number(t.amount), 0);
-  const personalExpense = expense - sharedExpense;
+  /**
+   * Phần thuộc về `memberId` trong giao dịch:
+   * - PERSONAL: full amount nếu là người tạo, ngược lại 0.
+   * - SHARED: số tiền trong shares của member (0 nếu không có).
+   */
+  type ShareLike = { memberId: string; amount: { toString(): string } };
+  function memberPart(t: {
+    amount: { toString(): string };
+    visibility: "PERSONAL" | "SHARED";
+    createdById: string;
+    shares: ShareLike[];
+  }): number {
+    if (t.visibility === "PERSONAL") {
+      return t.createdById === memberId ? Number(t.amount) : 0;
+    }
+    const s = t.shares.find((x) => x.memberId === memberId);
+    return s ? Number(s.amount) : 0;
+  }
 
-  const prevIncome = prevTxs.filter((t) => t.type === "INCOME").reduce((s, t) => s + Number(t.amount), 0);
-  const prevExpense = prevTxs.filter((t) => t.type === "EXPENSE").reduce((s, t) => s + Number(t.amount), 0);
+  // Period totals — theo phần của member
+  let income = 0;
+  let expense = 0;
+  let sharedExpense = 0;
+  let personalExpense = 0;
+  for (const t of txs) {
+    const part = memberPart(t);
+    if (part === 0) continue;
+    if (t.type === "INCOME") income += part;
+    else {
+      expense += part;
+      if (t.visibility === "SHARED") sharedExpense += part;
+      else personalExpense += part;
+    }
+  }
+
+  let prevIncome = 0;
+  let prevExpense = 0;
+  for (const t of prevTxs) {
+    const part = memberPart(t);
+    if (part === 0) continue;
+    if (t.type === "INCOME") prevIncome += part;
+    else prevExpense += part;
+  }
 
   function delta(cur: number, prev: number) {
     if (prev === 0) return cur > 0 ? 100 : 0;
@@ -94,12 +137,14 @@ export async function GET(req: Request) {
       map.set(key, { label: `${d.getDate()}/${d.getMonth() + 1}`, income: 0, expense: 0 });
     }
     for (const t of txs) {
+      const part = memberPart(t);
+      if (part === 0) continue;
       const d = new Date(t.date);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
       const row = map.get(key);
       if (!row) continue;
-      if (t.type === "INCOME") row.income += Number(t.amount);
-      else row.expense += Number(t.amount);
+      if (t.type === "INCOME") row.income += part;
+      else row.expense += part;
     }
     series = Array.from(map.values());
   } else {
@@ -110,27 +155,31 @@ export async function GET(req: Request) {
       map.set(key, { label: `T${d.getMonth() + 1}`, income: 0, expense: 0 });
     }
     for (const t of txs) {
+      const part = memberPart(t);
+      if (part === 0) continue;
       const d = new Date(t.date);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
       const row = map.get(key);
       if (!row) continue;
-      if (t.type === "INCOME") row.income += Number(t.amount);
-      else row.expense += Number(t.amount);
+      if (t.type === "INCOME") row.income += part;
+      else row.expense += part;
     }
     series = Array.from(map.values());
   }
 
-  // By category (chi)
+  // By category (chi) — theo phần của member
   const byCatMap = new Map<string, { name: string; color: string | null; icon: string | null; total: number }>();
   for (const t of txs) {
     if (t.type !== "EXPENSE") continue;
+    const part = memberPart(t);
+    if (part === 0) continue;
     const cur = byCatMap.get(t.category.name) || { name: t.category.name, color: t.category.color, icon: t.category.icon, total: 0 };
-    cur.total += Number(t.amount);
+    cur.total += part;
     byCatMap.set(t.category.name, cur);
   }
   const byCategory = Array.from(byCatMap.values()).sort((a, b) => b.total - a.total);
 
-  // By member (chi)
+  // By member (chi) — theo người trả tiền (cash flow). Giữ nguyên logic cũ.
   const byMemberMap = new Map<string, { name: string; total: number }>();
   for (const t of txs) {
     if (t.type !== "EXPENSE") continue;
