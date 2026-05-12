@@ -17,7 +17,8 @@ export const MoneyInput = forwardRef<HTMLInputElement, Props>(function MoneyInpu
   { value, onValueChange, suffix = "₫", className, ...rest },
   ref,
 ) {
-  const display = value ? `${formatNumber(value)} ${suffix}`.trim() : "";
+  // Không render suffix vào value để backspace xoá số mượt (tránh kẹt ở ký hiệu tiền tệ).
+  const display = value ? formatNumber(value) : "";
   return (
     <input
       {...rest}
@@ -25,6 +26,7 @@ export const MoneyInput = forwardRef<HTMLInputElement, Props>(function MoneyInpu
       className={className}
       inputMode="numeric"
       autoComplete="off"
+      aria-label={rest["aria-label"] ?? `Số tiền (${suffix})`}
       value={display}
       onChange={(e) => {
         const cleaned = e.target.value.replace(/\D/g, "");
