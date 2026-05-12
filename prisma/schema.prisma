@@ -233,6 +233,7 @@ model SavingGoal {
   name         String
   description  String?
   targetAmount Decimal    @db.Decimal(18, 2)
+  targetDate   DateTime?  @db.Date
   status       GoalStatus @default(ACTIVE)
   visibility   Visibility @default(SHARED)
   createdById  String

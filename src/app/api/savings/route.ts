@@ -10,6 +10,11 @@ const createSchema = z.object({
   name: z.string().min(1).max(120),
   description: z.string().max(500).optional().nullable(),
   targetAmount: z.coerce.number().positive(),
+  targetDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional()
+    .nullable(),
   visibility: z.enum(["PERSONAL", "SHARED"]).default("SHARED"),
   memberIds: z.array(z.string()).optional(),
 });
@@ -44,6 +49,8 @@ export async function GET() {
       visibility: g.visibility,
       createdById: g.createdById,
       targetAmount: g.targetAmount.toString(),
+      targetDate: g.targetDate ? g.targetDate.toISOString().slice(0, 10) : null,
+      createdAt: g.createdAt.toISOString(),
       totalContributed: total.toString(),
       progress: Number(g.targetAmount) > 0 ? Math.min(100, (Number(total) / Number(g.targetAmount)) * 100) : 0,
       members: g.members.map((m) => ({ memberId: m.memberId, name: m.member.user.name })),
@@ -86,6 +93,7 @@ export async function POST(req: Request) {
       name: parsed.data.name,
       description: parsed.data.description ?? null,
       targetAmount: new Prisma.Decimal(parsed.data.targetAmount),
+      targetDate: parsed.data.targetDate ? new Date(parsed.data.targetDate + "T00:00:00.000Z") : null,
       status: GoalStatus.ACTIVE,
       visibility: parsed.data.visibility as Visibility,
       createdById: session.user.memberId,

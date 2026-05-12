@@ -18,6 +18,8 @@ type Goal = {
   visibility: GoalVisibility;
   createdById: string;
   targetAmount: string;
+  targetDate: string | null;
+  createdAt?: string;
   totalContributed: string;
   progress: number;
   members: { memberId: string; name: string }[];
@@ -28,6 +30,48 @@ type GoalDetail = Goal & {
   members: { memberId: string; name: string; contributed: number }[];
 };
 type Member = { id: string; role: "OWNER" | "ADMIN" | "MEMBER"; user: { id: string; name: string } };
+
+/** Số ngày còn lại đến deadline (âm = đã quá hạn). null nếu không có deadline. */
+function daysUntil(dateStr: string | null | undefined): number | null {
+  if (!dateStr) return null;
+  const d = new Date(dateStr + "T00:00:00");
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return Math.ceil((d.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+}
+
+/** Mức độ khẩn: ok | soon (≤30 ngày) | urgent (≤7 ngày) | overdue (<0). */
+function deadlineUrgency(days: number | null): "none" | "ok" | "soon" | "urgent" | "overdue" {
+  if (days === null) return "none";
+  if (days < 0) return "overdue";
+  if (days <= 7) return "urgent";
+  if (days <= 30) return "soon";
+  return "ok";
+}
+
+function DeadlineBadge({ targetDate, completed }: { targetDate: string | null; completed?: boolean }) {
+  if (!targetDate) return null;
+  const days = daysUntil(targetDate);
+  const u = deadlineUrgency(days);
+  if (completed) {
+    return <span className="chip bg-success/10 text-success text-[10px]">✓ Hoàn thành</span>;
+  }
+  const cls =
+    u === "overdue"
+      ? "bg-danger/10 text-danger animate-pulse"
+      : u === "urgent"
+      ? "bg-orange-100 text-orange-700 animate-pulse"
+      : u === "soon"
+      ? "bg-amber-100 text-amber-700"
+      : "bg-gray-100 text-gray-600";
+  const label =
+    u === "overdue"
+      ? `Quá hạn ${Math.abs(days!)} ngày`
+      : days === 0
+      ? "Hôm nay"
+      : `Còn ${days} ngày`;
+  return <span className={`chip text-[10px] ${cls}`}>⏰ {label}</span>;
+}
 
 export function SavingsClient({
   currentMemberId,
@@ -142,9 +186,12 @@ export function SavingsClient({
                         <span className="font-bold text-gray-900">{formatVND(g.totalContributed)}</span>
                         <span className="text-gray-400"> / {formatVND(g.targetAmount)}</span>
                       </p>
-                      {g.status !== "ACTIVE" && (
-                        <span className="mt-1 inline-block chip bg-gray-100 text-gray-600 text-[10px]">{g.status}</span>
-                      )}
+                      <div className="mt-1 flex flex-wrap gap-1.5 items-center">
+                        <DeadlineBadge targetDate={g.targetDate} completed={g.status === "COMPLETED" || g.progress >= 100} />
+                        {g.status !== "ACTIVE" && (
+                          <span className="chip bg-gray-100 text-gray-600 text-[10px]">{g.status}</span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </button>
@@ -173,6 +220,8 @@ function CreateGoalForm({
   const [target, setTarget] = useState("");
   const [visibility, setVisibility] = useState<GoalVisibility>("SHARED");
   const [memberIds, setMemberIds] = useState<string[]>(members.map((m) => m.id));
+  const [deadlinePreset, setDeadlinePreset] = useState<"NONE" | "3M" | "6M" | "9M" | "CUSTOM">("NONE");
+  const [customDate, setCustomDate] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const toast = useToast();
@@ -181,9 +230,24 @@ function CreateGoalForm({
     setMemberIds((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
   }
 
+  function computeTargetDate(): string | null {
+    if (deadlinePreset === "NONE") return null;
+    if (deadlinePreset === "CUSTOM") return customDate || null;
+    const months = deadlinePreset === "3M" ? 3 : deadlinePreset === "6M" ? 6 : 9;
+    const d = new Date();
+    d.setMonth(d.getMonth() + months);
+    return d.toISOString().slice(0, 10);
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true); setError(null);
+    const targetDate = computeTargetDate();
+    if (deadlinePreset === "CUSTOM" && !targetDate) {
+      setLoading(false);
+      setError("Vui lòng chọn ngày hoàn thành");
+      return;
+    }
     const res = await fetch("/api/savings", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -191,6 +255,7 @@ function CreateGoalForm({
         name,
         description: description || null,
         targetAmount: Number(parseMoneyInput(target).toString()),
+        targetDate,
         visibility,
         memberIds: visibility === "PERSONAL" ? [currentMemberId] : memberIds,
       }),
@@ -246,6 +311,43 @@ function CreateGoalForm({
         <MoneyInput className="input" required value={target} onValueChange={setTarget} placeholder="0 ₫" />
       </div>
 
+      <div>
+        <label className="label">Thời gian hoàn thành</label>
+        <div className="grid grid-cols-5 gap-2">
+          {([
+            { v: "NONE", label: "Không hạn" },
+            { v: "3M", label: "3 tháng" },
+            { v: "6M", label: "6 tháng" },
+            { v: "9M", label: "9 tháng" },
+            { v: "CUSTOM", label: "Tự chọn" },
+          ] as const).map((opt) => (
+            <button
+              key={opt.v}
+              type="button"
+              onClick={() => setDeadlinePreset(opt.v)}
+              className={`chip border text-xs ${deadlinePreset === opt.v ? "bg-primary text-white border-primary" : "bg-white"}`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+        {deadlinePreset === "CUSTOM" && (
+          <input
+            type="date"
+            className="input mt-2"
+            value={customDate}
+            min={new Date().toISOString().slice(0, 10)}
+            onChange={(e) => setCustomDate(e.target.value)}
+            required
+          />
+        )}
+        {deadlinePreset !== "NONE" && deadlinePreset !== "CUSTOM" && (
+          <p className="text-xs text-gray-500 mt-1">
+            Hạn chót: {formatDate(computeTargetDate() ?? new Date().toISOString())}
+          </p>
+        )}
+      </div>
+
       {visibility === "SHARED" && (
         <div>
           <label className="label">Thành viên tham gia</label>
@@ -280,6 +382,8 @@ function EditGoalForm({
   const [description, setDescription] = useState(goal.description ?? "");
   const [target, setTarget] = useState(String(Math.round(Number(goal.targetAmount))));
   const [status, setStatus] = useState<GoalStatus>(goal.status);
+  const [hasDeadline, setHasDeadline] = useState<boolean>(!!goal.targetDate);
+  const [targetDate, setTargetDate] = useState<string>(goal.targetDate ?? "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const toast = useToast();
@@ -294,6 +398,7 @@ function EditGoalForm({
         name,
         description: description || null,
         targetAmount: Number(parseMoneyInput(target).toString()),
+        targetDate: hasDeadline ? targetDate || null : null,
         status,
       }),
     });
@@ -320,6 +425,21 @@ function EditGoalForm({
       <div>
         <label className="label">Số tiền mục tiêu</label>
         <MoneyInput className="input" required value={target} onValueChange={setTarget} placeholder="0 ₫" />
+      </div>
+      <div>
+        <label className="label flex items-center gap-2">
+          <input type="checkbox" checked={hasDeadline} onChange={(e) => setHasDeadline(e.target.checked)} />
+          Có hạn hoàn thành
+        </label>
+        {hasDeadline && (
+          <input
+            type="date"
+            className="input mt-1"
+            value={targetDate}
+            onChange={(e) => setTargetDate(e.target.value)}
+            required
+          />
+        )}
       </div>
       <div>
         <label className="label">Trạng thái</label>
@@ -527,7 +647,16 @@ function GoalDetailView({
           </div>
 
           <div className="relative mt-4 flex items-center justify-center" style={{ height: 260 }}>
-            <BigGoalRing percent={goal.progress} size={240} stroke={20} />
+            <BigGoalRing
+              percent={goal.progress}
+              size={240}
+              stroke={20}
+              urgent={
+                goal.status === "ACTIVE" &&
+                goal.progress < 100 &&
+                ["urgent", "overdue"].includes(deadlineUrgency(daysUntil(goal.targetDate)))
+              }
+            />
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <span className="text-5xl">🐷</span>
             </div>
@@ -563,6 +692,52 @@ function GoalDetailView({
             <span className="font-semibold text-gray-900">{formatVND(goal.totalContributed)}</span>
             <span className="text-gray-600"> / {formatVND(goal.targetAmount)}</span>
           </div>
+
+          {goal.targetDate && (() => {
+            const days = daysUntil(goal.targetDate)!;
+            const u = deadlineUrgency(days);
+            const completed = goal.status === "COMPLETED" || goal.progress >= 100;
+            // Time progress: % thời gian đã trôi qua từ lúc tạo → deadline
+            let timePct = 0;
+            if (goal.createdAt) {
+              const start = new Date(goal.createdAt).getTime();
+              const end = new Date(goal.targetDate + "T00:00:00").getTime();
+              const now = Date.now();
+              if (end > start) timePct = Math.max(0, Math.min(100, ((now - start) / (end - start)) * 100));
+            }
+            const barColor = completed
+              ? "bg-success"
+              : u === "overdue" || u === "urgent"
+              ? "bg-danger"
+              : u === "soon"
+              ? "bg-amber-500"
+              : "bg-primary";
+            const label = completed
+              ? "✅ Đã hoàn thành mục tiêu"
+              : u === "overdue"
+              ? `⚠️ Đã quá hạn ${Math.abs(days)} ngày`
+              : days === 0
+              ? "⏰ Hôm nay là hạn chót!"
+              : `⏰ Còn ${days} ngày đến hạn`;
+            return (
+              <div className={`mt-3 mx-2 rounded-2xl bg-white/70 border border-white/80 p-3 ${(u === "urgent" || u === "overdue") && !completed ? "animate-pulse" : ""}`}>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-bold text-gray-900">{label}</span>
+                  <span className="text-gray-600">{formatDate(goal.targetDate)}</span>
+                </div>
+                <div className="mt-2 h-2 rounded-full bg-white overflow-hidden">
+                  <div
+                    className={`h-full transition-all ${barColor}`}
+                    style={{ width: `${timePct.toFixed(1)}%` }}
+                  />
+                </div>
+                <div className="mt-1 flex items-center justify-between text-[10px] text-gray-600">
+                  <span>Thời gian đã trôi qua: {timePct.toFixed(0)}%</span>
+                  <span>Tiến độ tiền: {goal.progress.toFixed(0)}%</span>
+                </div>
+              </div>
+            );
+          })()}
 
           {goal.description && <p className="text-xs text-gray-700/80 mt-2 text-center">{goal.description}</p>}
           {goal.status !== "ACTIVE" && (
@@ -693,13 +868,17 @@ function DonutProgress({ percent, size = 84, stroke = 10, showLabel = true }: { 
   );
 }
 
-function BigGoalRing({ percent, size = 240, stroke = 20 }: { percent: number; size?: number; stroke?: number }) {
+function BigGoalRing({ percent, size = 240, stroke = 20, urgent = false }: { percent: number; size?: number; stroke?: number; urgent?: boolean }) {
   const p = Math.max(0, Math.min(100, percent));
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
   const dash = (p / 100) * c;
   return (
-    <svg width={size} height={size} className="-rotate-90 drop-shadow-sm">
+    <svg
+      width={size}
+      height={size}
+      className={`-rotate-90 drop-shadow-sm ${urgent ? "animate-pulse" : ""}`}
+    >
       <circle cx={size / 2} cy={size / 2} r={r} stroke="rgba(255,255,255,0.55)" strokeWidth={stroke} fill="none" />
       <circle cx={size / 2} cy={size / 2} r={r} stroke="#ffffff" strokeWidth={stroke} strokeLinecap="round" fill="none" strokeDasharray={`${dash} ${c - dash}`} />
     </svg>

@@ -38,6 +38,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     visibility: g.visibility,
     createdById: g.createdById,
     targetAmount: g.targetAmount.toString(),
+    targetDate: g.targetDate ? g.targetDate.toISOString().slice(0, 10) : null,
+    createdAt: g.createdAt.toISOString(),
     totalContributed: total.toString(),
     progress: Number(g.targetAmount) > 0 ? Math.min(100, (Number(total) / Number(g.targetAmount)) * 100) : 0,
     members: g.members.map((m) => ({
@@ -60,6 +62,11 @@ const updateSchema = z.object({
   name: z.string().min(1).max(120).optional(),
   description: z.string().max(500).optional().nullable(),
   targetAmount: z.coerce.number().positive().optional(),
+  targetDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .nullable()
+    .optional(),
   status: z.enum(["ACTIVE", "COMPLETED", "ARCHIVED"]).optional(),
 });
 
@@ -85,7 +92,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 
   const existing = await prisma.savingGoal.findFirst({
     where: { id, familyId: session.user.familyId, deletedAt: null },
-    select: { id: true, name: true, targetAmount: true, status: true, description: true, createdById: true, visibility: true },
+    select: { id: true, name: true, targetAmount: true, targetDate: true, status: true, description: true, createdById: true, visibility: true },
   });
   if (!existing) return NextResponse.json({ error: "Không tìm thấy" }, { status: 404 });
   if (!canManageGoal(session, existing)) {
@@ -111,6 +118,14 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     changes.push(
       `mục tiêu: ${Number(existing.targetAmount).toLocaleString("vi-VN")} ₫ → ${parsed.data.targetAmount.toLocaleString("vi-VN")} ₫`
     );
+  }
+  if (parsed.data.targetDate !== undefined) {
+    const newDate = parsed.data.targetDate;
+    const oldDate = existing.targetDate ? existing.targetDate.toISOString().slice(0, 10) : null;
+    if (newDate !== oldDate) {
+      data.targetDate = newDate ? new Date(newDate + "T00:00:00.000Z") : null;
+      changes.push(`hạn: ${oldDate ?? "(không hạn)"} → ${newDate ?? "(không hạn)"}`);
+    }
   }
   if (parsed.data.status && parsed.data.status !== existing.status) {
     data.status = parsed.data.status as GoalStatus;
