@@ -8,6 +8,7 @@ import { useClickOutside } from "@/lib/use-click-outside";
 export function TopBar() {
   const { data } = useSession();
   const [open, setOpen] = useState(false);
+  const [avatarFailed, setAvatarFailed] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const name = data?.user?.name || "Bạn";
   const initial = name.charAt(0).toUpperCase();
@@ -33,12 +34,22 @@ export function TopBar() {
         <div className="relative" ref={menuRef}>
           <button
             onClick={() => setOpen((o) => !o)}
-            className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-primary-700 text-white font-bold shadow-[0_6px_16px_rgba(247,131,168,0.4)]"
+            className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-primary-700 text-white font-bold shadow-[0_6px_16px_rgba(247,131,168,0.4)] overflow-hidden flex items-center justify-center"
             aria-label="Tài khoản"
             aria-haspopup="menu"
             aria-expanded={open}
           >
-            {initial}
+            {avatarFailed ? (
+              initial
+            ) : (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src="/api/profile/avatar"
+                alt={name}
+                className="w-full h-full object-cover"
+                onError={() => setAvatarFailed(true)}
+              />
+            )}
           </button>
           {open && (
             <div

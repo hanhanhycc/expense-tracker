@@ -6,11 +6,20 @@ import { useToast } from "@/components/toast";
 type Role = "OWNER" | "ADMIN" | "MEMBER";
 type Member = { id: string; role: Role; user: { id: string; name: string; email: string } };
 
-export function MembersClient({ canManage, currentMemberId }: { canManage: boolean; currentMemberId: string }) {
+export function MembersClient({
+  canManage,
+  currentMemberId,
+  currentRole,
+}: {
+  canManage: boolean;
+  currentMemberId: string;
+  currentRole: Role;
+}) {
   const [items, setItems] = useState<Member[]>([]);
   const [code, setCode] = useState<string | null>(null);
   const [role, setRole] = useState<"MEMBER" | "ADMIN">("MEMBER");
   const [loading, setLoading] = useState(false);
+  const [pwdMember, setPwdMember] = useState<Member | null>(null);
   const toast = useToast();
 
   async function load() {
@@ -93,13 +102,23 @@ export function MembersClient({ canManage, currentMemberId }: { canManage: boole
             const isSelf = m.id === currentMemberId;
             const isOwnerRow = m.role === "OWNER";
             const canEditThis = canManage && !isOwnerRow && !isSelf;
+            // Quy tắc đổi mật khẩu:
+            // - OWNER: được đổi cho mọi người trừ chính mình
+            // - ADMIN: chỉ được đổi cho MEMBER (không đụng OWNER/ADMIN khác)
+            const canResetPwd =
+              !isSelf &&
+              ((currentRole === "OWNER" && m.role !== "OWNER") ||
+                (currentRole === "ADMIN" && m.role === "MEMBER"));
             return (
               <li key={m.id} className="p-4 flex flex-col gap-2 desktop:flex-row desktop:items-center desktop:justify-between">
-                <div>
-                  <p className="font-medium">
-                    {m.user.name} {isSelf && <span className="text-xs text-gray-400">(bạn)</span>}
-                  </p>
-                  <p className="text-xs text-gray-500">{m.user.email}</p>
+                <div className="flex items-center gap-3">
+                  <MemberAvatar member={m} />
+                  <div>
+                    <p className="font-medium">
+                      {m.user.name} {isSelf && <span className="text-xs text-gray-400">(bạn)</span>}
+                    </p>
+                    <p className="text-xs text-gray-500">{m.user.email}</p>
+                  </div>
                 </div>
                 <div className="flex items-center gap-3">
                   {canEditThis ? (
@@ -116,6 +135,11 @@ export function MembersClient({ canManage, currentMemberId }: { canManage: boole
                       {m.role}
                     </span>
                   )}
+                  {canResetPwd && (
+                    <button onClick={() => setPwdMember(m)} className="text-xs text-primary">
+                      🔑 Đổi MK
+                    </button>
+                  )}
                   {canEditThis && (
                     <button onClick={() => remove(m.id)} className="text-xs text-danger">Xoá</button>
                   )}
@@ -125,6 +149,104 @@ export function MembersClient({ canManage, currentMemberId }: { canManage: boole
           })}
         </ul>
       </div>
+
+      {pwdMember && (
+        <ResetPasswordModal
+          member={pwdMember}
+          onClose={() => setPwdMember(null)}
+          onSaved={() => setPwdMember(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function MemberAvatar({ member }: { member: Member }) {
+  const [error, setError] = useState(false);
+  if (error) {
+    return (
+      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-primary-700 text-white font-bold flex items-center justify-center">
+        {member.user.name.charAt(0).toUpperCase()}
+      </div>
+    );
+  }
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={`/api/members/${member.id}/avatar`}
+      alt={member.user.name}
+      className="w-10 h-10 rounded-full object-cover border border-rose-100"
+      onError={() => setError(true)}
+    />
+  );
+}
+
+function ResetPasswordModal({
+  member,
+  onClose,
+  onSaved,
+}: {
+  member: Member;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [pwd, setPwd] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [loading, setLoading] = useState(false);
+  const toast = useToast();
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (pwd.length < 6) return toast.error("Mật khẩu tối thiểu 6 ký tự");
+    if (pwd !== confirm) return toast.error("Xác nhận mật khẩu không khớp");
+    setLoading(true);
+    const res = await fetch(`/api/members/${member.id}/password`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ newPassword: pwd }),
+    });
+    setLoading(false);
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}));
+      toast.error(d.error || "Đặt lại thất bại");
+      return;
+    }
+    toast.success(`Đã đặt lại mật khẩu cho ${member.user.name}`);
+    onSaved();
+  }
+
+  return (
+    <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <form
+        onSubmit={submit}
+        onClick={(e) => e.stopPropagation()}
+        className="bg-white rounded-2xl p-5 w-full max-w-sm space-y-3 shadow-xl"
+      >
+        <div className="flex justify-between items-center">
+          <h2 className="font-semibold">Đặt lại mật khẩu</h2>
+          <button type="button" onClick={onClose} className="text-gray-500">✕</button>
+        </div>
+        <p className="text-xs text-gray-600">
+          Cho thành viên: <span className="font-medium text-gray-900">{member.user.name}</span>
+        </p>
+        <div>
+          <label className="label">Mật khẩu mới</label>
+          <input className="input" type="password" required minLength={6} value={pwd} onChange={(e) => setPwd(e.target.value)} />
+        </div>
+        <div>
+          <label className="label">Xác nhận mật khẩu</label>
+          <input className="input" type="password" required minLength={6} value={confirm} onChange={(e) => setConfirm(e.target.value)} />
+        </div>
+        <p className="text-xs text-gray-500">
+          Sau khi đặt lại, hãy thông báo mật khẩu mới cho thành viên qua kênh riêng tư.
+        </p>
+        <div className="flex gap-2">
+          <button type="button" onClick={onClose} className="btn-ghost flex-1">Huỷ</button>
+          <button className="btn-primary flex-1" disabled={loading}>
+            {loading ? "Đang lưu..." : "Đặt lại"}
+          </button>
+        </div>
+      </form>
     </div>
   );
 }
