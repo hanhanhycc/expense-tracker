@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { parseMoneyInput } from "@/lib/money";
 import { MoneyInput } from "@/components/money-input";
 import { useToast } from "@/components/toast";
@@ -40,7 +39,6 @@ export type TransactionFormInitial = {
 };
 
 export function TransactionForm({ initial, currentMemberId }: { initial?: TransactionFormInitial; currentMemberId: string }) {
-  const router = useRouter();
   const toast = useToast();
   const [categories, setCategories] = useState<Category[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
@@ -165,9 +163,9 @@ export function TransactionForm({ initial, currentMemberId }: { initial?: Transa
 
       toast.success(initial?.id ? "Đã cập nhật giao dịch" : "Đã thêm giao dịch");
       if (!initial?.id && type === "INCOME") fireConfetti();
+      setLoading(false);
       await waitMs(3000);
-      router.push("/history");
-      router.refresh();
+      window.location.href = "/history";
     } catch {
       const msg = "Kết nối chậm hoặc máy chủ không phản hồi, vui lòng thử lại";
       setError(msg);
