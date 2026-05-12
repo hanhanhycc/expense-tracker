@@ -40,6 +40,8 @@ fi
 
 [[ -f .env ]] || { err "Thiếu file .env trong $APP_DIR"; exit 1; }
 [[ -f "$COMPOSE_FILE" ]] || { err "Thiếu $COMPOSE_FILE"; exit 1; }
+# shellcheck disable=SC1091
+set -a; . ./.env; set +a
 
 # ─────────────────────────────────────────────
 # Backup DB trước khi update (tự động, giữ 14 ngày)
@@ -80,10 +82,13 @@ for i in {1..30}; do
 done
 
 log "🗞  Đồng bộ schema (db push)..."
-$DC -f "$COMPOSE_FILE" exec -T "$SERVICE" pnpm db:push || {
-  err "db push thất bại — xem log: $DC -f $COMPOSE_FILE logs $SERVICE"
-  exit 1
-}
+if ! $DC -f "$COMPOSE_FILE" exec -T "$SERVICE" pnpm db:push; then
+  log "⚠️  db push cần xác nhận cảnh báo schema, thử lại với --accept-data-loss..."
+  $DC -f "$COMPOSE_FILE" exec -T "$SERVICE" pnpm prisma db push --skip-generate --accept-data-loss || {
+    err "db push thất bại — xem log: $DC -f $COMPOSE_FILE logs $SERVICE"
+    exit 1
+  }
+fi
 
 if $RUN_SEED; then
   log "🌱 Chạy seed..."
