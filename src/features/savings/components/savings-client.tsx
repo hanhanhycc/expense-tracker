@@ -174,7 +174,7 @@ export function SavingsClient({
             {filtered.map((g) => (
               <li key={g.id}>
                 <button onClick={() => setOpenId(g.id)} className="w-full text-left card hover:shadow-md transition">
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-start gap-4">
                     <DonutProgress percent={g.progress} size={84} stroke={10} />
                     <div className="min-w-0 flex-1">
                       <p className="font-bold truncate">
