@@ -7,6 +7,20 @@ import { MoneyInput } from "@/components/money-input";
 import { useToast } from "@/components/toast";
 import { fireConfetti } from "@/components/confetti";
 
+async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit = {}, timeoutMs = 15000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function waitMs(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 type Category = { id: string; name: string; kind: "INCOME" | "EXPENSE"; icon: string | null; color: string | null };
 type Member = { id: string; user: { id: string; name: string }; role: string };
 
@@ -112,40 +126,54 @@ export function TransactionForm({ initial, currentMemberId }: { initial?: Transa
     const url = initial?.id ? `/api/transactions/${initial.id}` : "/api/transactions";
     const method = initial?.id ? "PUT" : "POST";
 
-    const res = await fetch(url, { method, headers: { "content-type": "application/json" }, body: JSON.stringify(payload) });
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      setError(data.error || "Lỗi không xác định");
-      toast.error(data.error || "Lưu giao dịch thất bại");
-      setLoading(false);
-      return;
-    }
-    const respJson = await res.json().catch(() => ({} as { id?: string }));
-    const txId = (initial?.id ?? respJson.id) as string | undefined;
-
-    // Receipt: upload moới hoặc xoá cũ
-    if (txId) {
-      try {
-        if (receiptFile) {
-          const fd = new FormData();
-          fd.append("file", receiptFile);
-          const r = await fetch(`/api/transactions/${txId}/receipt`, { method: "POST", body: fd });
-          if (!r.ok) {
-            const d = await r.json().catch(() => ({}));
-            toast.error(d.error || "Tải ảnh thất bại");
-          }
-        } else if (initial?.id && removeExistingReceipt) {
-          await fetch(`/api/transactions/${txId}/receipt`, { method: "DELETE" });
-        }
-      } catch {
-        toast.error("Tải ảnh thất bại");
+    try {
+      const res = await fetchWithTimeout(
+        url,
+        { method, headers: { "content-type": "application/json" }, body: JSON.stringify(payload) },
+        15000,
+      );
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        const msg = data.error || "Lưu giao dịch thất bại";
+        setError(msg);
+        toast.error(msg);
+        setLoading(false);
+        return;
       }
-    }
 
-    toast.success(initial?.id ? "Đã cập nhật giao dịch" : "Đã thêm giao dịch");
-    if (!initial?.id && type === "INCOME") fireConfetti();
-    router.push("/history");
-    router.refresh();
+      const respJson = await res.json().catch(() => ({} as { id?: string }));
+      const txId = (initial?.id ?? respJson.id) as string | undefined;
+
+      // Receipt: upload mới hoặc xoá cũ
+      if (txId) {
+        try {
+          if (receiptFile) {
+            const fd = new FormData();
+            fd.append("file", receiptFile);
+            const r = await fetchWithTimeout(`/api/transactions/${txId}/receipt`, { method: "POST", body: fd }, 15000);
+            if (!r.ok) {
+              const d = await r.json().catch(() => ({}));
+              toast.error(d.error || "Tải ảnh thất bại");
+            }
+          } else if (initial?.id && removeExistingReceipt) {
+            await fetchWithTimeout(`/api/transactions/${txId}/receipt`, { method: "DELETE" }, 15000);
+          }
+        } catch {
+          toast.error("Tải ảnh thất bại");
+        }
+      }
+
+      toast.success(initial?.id ? "Đã cập nhật giao dịch" : "Đã thêm giao dịch");
+      if (!initial?.id && type === "INCOME") fireConfetti();
+      await waitMs(3000);
+      router.push("/history");
+      router.refresh();
+    } catch {
+      const msg = "Kết nối chậm hoặc máy chủ không phản hồi, vui lòng thử lại";
+      setError(msg);
+      toast.error(msg);
+      setLoading(false);
+    }
   }
 
   return (
