@@ -87,13 +87,20 @@ export async function GET(req: Request) {
     amount: { toString(): string };
     visibility: "PERSONAL" | "SHARED";
     createdById: string;
+    paidById: string;
     shares: ShareLike[];
   }): number {
     if (t.visibility === "PERSONAL") {
       return t.createdById === memberId ? Number(t.amount) : 0;
     }
     const s = t.shares.find((x) => x.memberId === memberId);
-    return s ? Number(s.amount) : 0;
+    if (s) return Number(s.amount);
+    if (t.paidById === memberId) {
+      const totalShared = t.shares.reduce((sum, x) => sum + Number(x.amount), 0);
+      const residual = Number(t.amount) - totalShared;
+      return residual > 0 ? residual : 0;
+    }
+    return 0;
   }
 
   // Period totals — theo phần của member

@@ -31,6 +31,7 @@ type TxForSpent = {
   amount: Prisma.Decimal;
   visibility: "PERSONAL" | "SHARED";
   createdById: string;
+  paidById: string;
   shares: { memberId: string; amount: Prisma.Decimal }[];
 };
 
@@ -44,7 +45,13 @@ function memberCost(t: TxForSpent, memberId: string): Prisma.Decimal {
     return t.createdById === memberId ? t.amount : new Prisma.Decimal(0);
   }
   const s = t.shares.find((x) => x.memberId === memberId);
-  return s ? s.amount : new Prisma.Decimal(0);
+  if (s) return s.amount;
+  if (t.paidById === memberId) {
+    const totalShared = t.shares.reduce((acc, x) => acc.plus(x.amount), new Prisma.Decimal(0));
+    const residual = t.amount.minus(totalShared);
+    return residual.greaterThan(0) ? residual : new Prisma.Decimal(0);
+  }
+  return new Prisma.Decimal(0);
 }
 
 /**
@@ -91,6 +98,7 @@ export async function listBudgetsForMonth(
         amount: true,
         visibility: true,
         createdById: true,
+        paidById: true,
         shares: { select: { memberId: true, amount: true } },
       },
     }),

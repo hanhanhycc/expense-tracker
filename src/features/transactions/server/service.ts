@@ -183,6 +183,7 @@ export async function monthSummary(familyId: string, memberId: string, from: Dat
       visibility: true,
       categoryId: true,
       createdById: true,
+      paidById: true,
       shares: { select: { memberId: true, amount: true } },
       category: { select: { name: true, icon: true, color: true } },
     },
@@ -199,7 +200,13 @@ export async function monthSummary(familyId: string, memberId: string, from: Dat
       return t.createdById === memberId ? t.amount.toString() : "0";
     }
     const s = t.shares.find((x) => x.memberId === memberId);
-    return s ? s.amount.toString() : "0";
+    if (s) return s.amount.toString();
+    if (t.paidById === memberId) {
+      const totalShared = t.shares.reduce((acc, x) => acc.plus(x.amount.toString()), toDecimal(0));
+      const residual = toDecimal(t.amount.toString()).minus(totalShared);
+      return residual.greaterThan(0) ? residual.toString() : "0";
+    }
+    return "0";
   }
 
   const incomeParts: string[] = [];
