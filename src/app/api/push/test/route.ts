@@ -4,12 +4,14 @@ import { isWebPushConfigured, sendWebPushToMember } from "@/lib/web-push";
 
 /**
  * POST /api/push/test — gửi 1 push test tới chính member hiện tại.
- * Hữu ích để debug: nếu nhận được → server + subscription OK; ngược lại trả về
- * thông tin để chẩn đoán (configured, errors).
+ * Chỉ ADMIN/OWNER được gọi — endpoint debug, không phải để user thường dùng.
  */
 export async function POST() {
   const session = await auth();
   if (!session?.user?.familyId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (session.user.role !== "OWNER" && session.user.role !== "ADMIN") {
+    return NextResponse.json({ error: "Cần quyền OWNER hoặc ADMIN" }, { status: 403 });
+  }
 
   if (!isWebPushConfigured()) {
     return NextResponse.json(
