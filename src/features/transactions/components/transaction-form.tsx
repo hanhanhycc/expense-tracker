@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { parseMoneyInput } from "@/lib/money";
 import { MoneyInput } from "@/components/money-input";
 import { useToast } from "@/components/toast";
 import { fireConfetti } from "@/components/confetti";
+import { AccountBadge } from "@/components/account-badge";
+import { useClickOutside } from "@/lib/use-click-outside";
 
 async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit = {}, timeoutMs = 15000) {
   const controller = new AbortController();
@@ -31,7 +33,7 @@ type Category = {
   sortOrder: number;
 };
 type Member = { id: string; user: { id: string; name: string }; role: string };
-type Account = { id: string; name: string; type: string; icon: string | null; isDefault: boolean };
+type Account = { id: string; name: string; type: string; icon: string | null; color: string | null; bankCode: string | null; isDefault: boolean };
 
 export type TransactionFormInitial = {
   id?: string;
@@ -260,14 +262,7 @@ export function TransactionForm({ initial, currentMemberId }: { initial?: Transa
 
       <div>
         <label className="label">Tài khoản</label>
-        <select className="input" value={accountId} onChange={(e) => setAccountId(e.target.value)}>
-          <option value="">— Không chọn —</option>
-          {accounts.map((a) => (
-            <option key={a.id} value={a.id}>
-              {a.icon ? `${a.icon} ` : ""}{a.name}
-            </option>
-          ))}
-        </select>
+        <AccountPicker accounts={accounts} value={accountId} onChange={setAccountId} />
       </div>
 
       <div>
@@ -574,6 +569,77 @@ function CategoryPicker({
               })}
             </div>
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * AccountPicker — dropdown custom hiển thị logo bank thật.
+ * Native <select> không render được logo nên phải tự làm dropdown.
+ */
+function AccountPicker({
+  accounts,
+  value,
+  onChange,
+}: {
+  accounts: Account[];
+  value: string;
+  onChange: (id: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useClickOutside({ enabled: open, onClose: () => setOpen(false), ref });
+
+  const selected = accounts.find((a) => a.id === value) || null;
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="input w-full flex items-center gap-2 text-left"
+      >
+        {selected ? (
+          <>
+            <AccountBadge
+              name={selected.name}
+              icon={selected.icon}
+              color={selected.color}
+              bankCode={selected.bankCode}
+              size={24}
+            />
+            <span className="flex-1 truncate">{selected.name}</span>
+          </>
+        ) : (
+          <span className="flex-1 text-gray-500">— Không chọn —</span>
+        )}
+        <span className="text-gray-400">▾</span>
+      </button>
+
+      {open && (
+        <div className="absolute z-20 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-64 overflow-y-auto">
+          <button
+            type="button"
+            onClick={() => { onChange(""); setOpen(false); }}
+            className={`w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-rose-50 ${!value ? "bg-rose-50" : ""}`}
+          >
+            <span className="w-6 h-6 inline-flex items-center justify-center text-gray-400">—</span>
+            <span className="text-gray-500">Không chọn</span>
+          </button>
+          {accounts.map((a) => (
+            <button
+              key={a.id}
+              type="button"
+              onClick={() => { onChange(a.id); setOpen(false); }}
+              className={`w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-rose-50 ${value === a.id ? "bg-rose-50" : ""}`}
+            >
+              <AccountBadge name={a.name} icon={a.icon} color={a.color} bankCode={a.bankCode} size={24} />
+              <span className="flex-1 truncate">{a.name}</span>
+              {a.isDefault && <span className="text-[10px] text-primary">mặc định</span>}
+            </button>
+          ))}
         </div>
       )}
     </div>
