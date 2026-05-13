@@ -31,6 +31,12 @@ services:
       AUTH_URL: ${AUTH_URL}
       UPLOAD_DIR: /app/uploads
       NODE_ENV: production
+      # Web Push (server-side). NEXT_PUBLIC_VAPID_PUBLIC_KEY duoc embed vao
+      # client bundle o build time (qua GitHub Secret), nhung server runtime
+      # van can de webpush.setVapidDetails() (3 keys bat buoc).
+      NEXT_PUBLIC_VAPID_PUBLIC_KEY: ${NEXT_PUBLIC_VAPID_PUBLIC_KEY}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY}
+      VAPID_SUBJECT: ${VAPID_SUBJECT}
     volumes:
       - ./data/uploads:/app/uploads
     ports:

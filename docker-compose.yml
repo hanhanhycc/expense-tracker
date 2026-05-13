@@ -30,6 +30,9 @@ services:
       AUTH_URL: ${AUTH_URL}
       UPLOAD_DIR: /app/uploads
       NODE_ENV: production
+      NEXT_PUBLIC_VAPID_PUBLIC_KEY: ${NEXT_PUBLIC_VAPID_PUBLIC_KEY}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY}
+      VAPID_SUBJECT: ${VAPID_SUBJECT}
     volumes:
       - ./data/uploads:/app/uploads
     ports:

@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useClickOutside } from "@/lib/use-click-outside";
 import { ensurePushSubscription } from "@/lib/push-client";
 import { SwipeActions } from "@/components/swipe-actions";
+import { useToast } from "@/components/toast";
 
 type NotificationItem = {
   id: string;
@@ -65,7 +66,9 @@ export function NotificationsBell() {
     typeof window !== "undefined" && "Notification" in window ? Notification.permission : "unsupported",
   );
   const [enabling, setEnabling] = useState(false);
+  const [testing, setTesting] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const toast = useToast();
 
   useClickOutside({ enabled: open, onClose: () => setOpen(false), ref });
 
@@ -164,11 +167,34 @@ export function NotificationsBell() {
       setPushPermission(Notification.permission);
     }
     if (result.status === "no-vapid") {
-      // Server admin chưa setup VAPID — không spam user.
       // eslint-disable-next-line no-console
       console.warn("[push] VAPID keys chưa được cấu hình.");
     }
   }, []);
+
+  const testPush = useCallback(async () => {
+    setTesting(true);
+    try {
+      // Đảm bảo có subscription trước khi test
+      await ensurePushSubscription();
+      const res = await fetch("/api/push/test", { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (data.ok) {
+        toast.success(`Đã gửi push test (${data.sent} subscription). Kiểm tra banner notification.`);
+      } else {
+        const msg = data.message || `Gửi thất bại. sent=${data.sent ?? 0} failed=${data.failed ?? 0}`;
+        toast.error(msg);
+        // eslint-disable-next-line no-console
+        console.error("[push-test]", data);
+      }
+    } catch (e) {
+      toast.error("Lỗi gọi API test");
+      // eslint-disable-next-line no-console
+      console.error(e);
+    } finally {
+      setTesting(false);
+    }
+  }, [toast]);
 
   return (
     <div className="relative" ref={ref}>
@@ -214,6 +240,15 @@ export function NotificationsBell() {
             >
               <span>🔔</span>
               <span>{enabling ? "Đang bật..." : "Bật thông báo đẩy real-time"}</span>
+            </button>
+          )}
+          {pushPermission === "granted" && (
+            <button
+              onClick={testPush}
+              disabled={testing}
+              className="w-full px-4 py-1.5 text-[11px] text-gray-500 hover:bg-gray-50 disabled:opacity-60 border-b"
+            >
+              {testing ? "Đang gửi..." : "🧪 Gửi push test (debug)"}
             </button>
           )}
           {pushPermission === "denied" && (
