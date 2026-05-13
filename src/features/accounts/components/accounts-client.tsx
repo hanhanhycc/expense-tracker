@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useToast } from "@/components/toast";
+import { IconPicker } from "@/components/icon-picker";
 
 export type AccountType = "CASH" | "BANK" | "CARD" | "EWALLET" | "OTHER";
 export type Account = {
@@ -109,11 +110,11 @@ export function AccountsClient({ canManage }: { canManage: boolean }) {
 
       {canManage && (
         <form onSubmit={add} className="card grid grid-cols-12 gap-2 items-end">
-          <div className="col-span-2">
+          <div className="col-span-3">
             <label className="label">Icon</label>
-            <input className="input text-center" maxLength={2} value={icon} onChange={(e) => setIcon(e.target.value)} />
+            <IconPicker value={icon} onChange={setIcon} />
           </div>
-          <div className="col-span-5">
+          <div className="col-span-4">
             <label className="label">Tên</label>
             <input
               className="input"

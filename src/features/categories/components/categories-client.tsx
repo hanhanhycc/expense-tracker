@@ -13,6 +13,7 @@ import {
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useToast } from "@/components/toast";
+import { IconPicker } from "@/components/icon-picker";
 
 type Cat = {
   id: string;
@@ -507,11 +508,11 @@ function AddModal({
     <ModalShell title={parentId ? "Thêm danh mục con" : "Thêm nhóm cha"} onClose={onClose}>
       <form onSubmit={submit} className="space-y-3">
         <div className="grid grid-cols-12 gap-2">
-          <div className="col-span-2">
+          <div className="col-span-3">
             <label className="label">Icon</label>
-            <input className="input text-center" maxLength={2} value={icon} onChange={(e) => setIcon(e.target.value)} />
+            <IconPicker value={icon} onChange={setIcon} />
           </div>
-          <div className="col-span-10">
+          <div className="col-span-9">
             <label className="label">Tên</label>
             <input
               className="input"
@@ -599,11 +600,11 @@ function EditModal({
     <ModalShell title="Sửa danh mục" onClose={onClose}>
       <form onSubmit={submit} className="space-y-3">
         <div className="grid grid-cols-12 gap-2">
-          <div className="col-span-2">
+          <div className="col-span-3">
             <label className="label">Icon</label>
-            <input className="input text-center" maxLength={2} value={icon} onChange={(e) => setIcon(e.target.value)} />
+            <IconPicker value={icon} onChange={setIcon} />
           </div>
-          <div className="col-span-10">
+          <div className="col-span-9">
             <label className="label">Tên</label>
             <input className="input" required maxLength={60} value={name} onChange={(e) => setName(e.target.value)} />
           </div>
