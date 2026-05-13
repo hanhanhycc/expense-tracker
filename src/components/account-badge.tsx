@@ -30,6 +30,8 @@ export function AccountBadge({
     bankCode && bankCode.trim() ? bankCode.trim() : findVietQRBank(name)?.code ?? null;
 
   if (resolvedCode && !logoFailed) {
+    // Logo từ VietQR CDN có sẵn padding trắng quanh ~15%. Scale up + overflow hidden
+    // để logo "vừa khít" badge tròn, không bị bé tí.
     return (
       <span
         className="inline-flex items-center justify-center rounded-full shrink-0 overflow-hidden bg-white border border-gray-200"
@@ -39,11 +41,14 @@ export function AccountBadge({
         <img
           src={logoUrlFor(resolvedCode)}
           alt={name}
-          width={size}
-          height={size}
           loading="lazy"
           onError={() => setLogoFailed(true)}
-          style={{ width: "100%", height: "100%", objectFit: "contain" }}
+          style={{
+            width: "140%",
+            height: "140%",
+            objectFit: "contain",
+            objectPosition: "center",
+          }}
         />
       </span>
     );
