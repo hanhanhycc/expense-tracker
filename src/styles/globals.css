@@ -121,3 +121,10 @@ body {
 }
 .ptr-indicator.spin svg { animation: spin 0.8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* Bottom sheet slide-up */
+@keyframes slide-up {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+.animate-slide-up { animation: slide-up 220ms cubic-bezier(0.16, 1, 0.3, 1); }

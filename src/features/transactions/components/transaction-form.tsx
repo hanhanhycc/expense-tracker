@@ -377,6 +377,13 @@ export function TransactionForm({ initial, currentMemberId }: { initial?: Transa
   );
 }
 
+/**
+ * CategoryPicker — grid card + bottom sheet.
+ * - Mobile: 4 cột card vuông, icon to, tên nhỏ phía dưới
+ * - Group có children: click → bottom sheet hiện chip con
+ * - Group leaf (no children): click chọn trực tiếp
+ * - Selected: card highlight + banner ở trên
+ */
 function CategoryPicker({
   groups,
   childrenOf,
@@ -392,30 +399,36 @@ function CategoryPicker({
   selectedParent: Category | null;
   onChange: (id: string) => void;
 }) {
-  const [expandedGroupId, setExpandedGroupId] = useState<string | null>(null);
-
-  // Khi value đổi (vd: edit transaction), auto-expand group chứa selected child
-  useEffect(() => {
-    if (selectedCat?.parentId) setExpandedGroupId(selectedCat.parentId);
-  }, [selectedCat?.parentId]);
+  const [sheetGroupId, setSheetGroupId] = useState<string | null>(null);
+  const sheetGroup = sheetGroupId ? groups.find((g) => g.id === sheetGroupId) : null;
 
   if (groups.length === 0) {
     return (
       <div>
         <label className="label">Danh mục</label>
-        <p className="text-sm text-gray-500">Chưa có danh mục. Vào Cài đặt → Danh mục → Áp dụng cấu trúc mặc định.</p>
+        <p className="text-sm text-gray-500">
+          Chưa có danh mục. Vào Cài đặt → Danh mục → Áp dụng cấu trúc mặc định.
+        </p>
       </div>
     );
   }
 
+  // Group với children sắp xếp lên trước, group leaf xuống sau
+  const sortedGroups = [...groups].sort((a, b) => {
+    const aHasKids = childrenOf(a.id).length > 0 ? 0 : 1;
+    const bHasKids = childrenOf(b.id).length > 0 ? 0 : 1;
+    if (aHasKids !== bHasKids) return aHasKids - bHasKids;
+    return a.sortOrder - b.sortOrder;
+  });
+
   return (
     <div>
-      <div className="flex items-center justify-between mb-1.5">
+      <div className="flex items-center justify-between mb-2">
         <label className="label !mb-0">Danh mục</label>
         {selectedCat && (
           <button
             type="button"
-            onClick={() => { onChange(""); setExpandedGroupId(null); }}
+            onClick={() => onChange("")}
             className="text-[11px] text-gray-400 hover:text-gray-600"
           >
             Bỏ chọn
@@ -423,62 +436,143 @@ function CategoryPicker({
         )}
       </div>
 
+      {/* Banner selected */}
       {selectedCat && (
-        <div className="mb-2 px-3 py-2 rounded-xl bg-primary/10 border border-primary/30 text-sm flex items-center gap-2">
-          <span className="text-lg">{selectedCat.icon || "📦"}</span>
-          <span className="font-medium">{selectedCat.name}</span>
-          {selectedParent && <span className="text-xs text-gray-500">· {selectedParent.name}</span>}
-        </div>
+        <button
+          type="button"
+          onClick={() => {
+            // Click banner → mở lại sheet để đổi
+            if (selectedCat.parentId) setSheetGroupId(selectedCat.parentId);
+          }}
+          className="w-full mb-3 px-3 py-2.5 rounded-2xl border-2 border-primary bg-primary/5 text-left flex items-center gap-3 hover:bg-primary/10 transition"
+        >
+          <span
+            className="w-10 h-10 rounded-xl flex items-center justify-center text-2xl flex-shrink-0"
+            style={{ background: (selectedCat.color || "#F783A8") + "22" }}
+          >
+            {selectedCat.icon || "📦"}
+          </span>
+          <div className="flex-1 min-w-0">
+            <div className="font-semibold text-gray-900 truncate">{selectedCat.name}</div>
+            {selectedParent && (
+              <div className="text-xs text-gray-500 truncate">
+                {selectedParent.icon} {selectedParent.name}
+              </div>
+            )}
+          </div>
+          {selectedCat.parentId && <span className="text-xs text-primary-700">Đổi ›</span>}
+        </button>
       )}
 
-      <div className="flex flex-wrap gap-2">
-        {groups.map((g) => {
+      {/* Grid card 4 cột mobile, 6 cột desktop */}
+      <div className="grid grid-cols-4 desktop:grid-cols-6 gap-2">
+        {sortedGroups.map((g) => {
           const kids = childrenOf(g.id);
-          const isExpanded = expandedGroupId === g.id;
-          const isSelectedHere = selectedCat?.id === g.id || selectedCat?.parentId === g.id;
-          // Nếu group không có children → nó vừa là group vừa là leaf, click chọn luôn
-          const isLeafGroup = kids.length === 0;
+          const hasKids = kids.length > 0;
+          const isSelectedHere =
+            (hasKids && selectedCat?.parentId === g.id) || (!hasKids && value === g.id);
+          const bg = (g.color || "#F783A8") + "1A";
 
           return (
             <button
               key={g.id}
               type="button"
               onClick={() => {
-                if (isLeafGroup) {
-                  onChange(g.id);
+                if (hasKids) {
+                  setSheetGroupId(g.id);
                 } else {
-                  setExpandedGroupId(isExpanded ? null : g.id);
+                  onChange(g.id);
                 }
               }}
-              className={`chip border transition ${
-                (isLeafGroup && value === g.id) || isSelectedHere
-                  ? "bg-primary text-white border-primary"
-                  : "bg-white text-gray-700"
+              className={`relative aspect-[1/1.1] rounded-2xl border-2 p-1.5 flex flex-col items-center justify-center gap-1 transition active:scale-95 ${
+                isSelectedHere
+                  ? "border-primary bg-primary/10 shadow-[0_4px_12px_rgba(247,131,168,0.25)]"
+                  : "border-rose-100 bg-white hover:border-rose-200"
               }`}
             >
-              <span className="mr-1">{g.icon || "📦"}</span>
-              {g.name}
-              {!isLeafGroup && <span className="ml-1 text-xs opacity-70">{isExpanded ? "▾" : "▸"}</span>}
+              <span
+                className="w-9 h-9 rounded-xl flex items-center justify-center text-xl"
+                style={{ background: bg }}
+              >
+                {g.icon || "📦"}
+              </span>
+              <span className="text-[11px] leading-tight text-center font-medium text-gray-700 line-clamp-2 px-0.5">
+                {g.name}
+              </span>
+              {hasKids && (
+                <span className="absolute top-1 right-1 min-w-[16px] h-4 px-1 rounded-full bg-gray-100 text-[9px] font-bold text-gray-500 flex items-center justify-center">
+                  {kids.length}
+                </span>
+              )}
             </button>
           );
         })}
       </div>
 
-      {expandedGroupId && (
-        <div className="mt-3 pl-3 border-l-2 border-primary/30">
-          <p className="text-[11px] text-gray-500 mb-1.5">Chọn danh mục con:</p>
-          <div className="flex flex-wrap gap-2">
-            {childrenOf(expandedGroupId).map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                onClick={() => onChange(c.id)}
-                className={`chip border ${value === c.id ? "bg-primary text-white border-primary" : "bg-white text-gray-700"}`}
+      {/* Bottom sheet hiển thị children */}
+      {sheetGroup && (
+        <div
+          className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
+          onClick={() => setSheetGroupId(null)}
+        >
+          <div
+            className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl max-h-[80vh] overflow-y-auto p-4 pb-8 shadow-[0_-10px_40px_rgba(0,0,0,0.2)] animate-slide-up"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-center mb-3">
+              <div className="w-12 h-1 bg-gray-200 rounded-full" />
+            </div>
+            <div className="flex items-center gap-3 mb-4">
+              <span
+                className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl"
+                style={{ background: (sheetGroup.color || "#F783A8") + "22" }}
               >
-                <span className="mr-1">{c.icon || "📦"}</span>
-                {c.name}
+                {sheetGroup.icon || "📦"}
+              </span>
+              <div className="flex-1">
+                <h3 className="font-bold text-gray-900">{sheetGroup.name}</h3>
+                <p className="text-xs text-gray-500">{childrenOf(sheetGroup.id).length} danh mục</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSheetGroupId(null)}
+                className="w-9 h-9 rounded-full hover:bg-gray-100 text-gray-500 text-xl flex items-center justify-center"
+                aria-label="Đóng"
+              >
+                ✕
               </button>
-            ))}
+            </div>
+            <div className="grid grid-cols-3 desktop:grid-cols-5 gap-2">
+              {childrenOf(sheetGroup.id).map((c) => {
+                const isSelected = value === c.id;
+                const bg = (c.color || sheetGroup.color || "#F783A8") + "1A";
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => {
+                      onChange(c.id);
+                      setSheetGroupId(null);
+                    }}
+                    className={`relative aspect-[1/1.1] rounded-2xl border-2 p-1.5 flex flex-col items-center justify-center gap-1 transition active:scale-95 ${
+                      isSelected
+                        ? "border-primary bg-primary/10 shadow-[0_4px_12px_rgba(247,131,168,0.25)]"
+                        : "border-rose-100 bg-white hover:border-rose-200"
+                    }`}
+                  >
+                    <span
+                      className="w-9 h-9 rounded-xl flex items-center justify-center text-xl"
+                      style={{ background: bg }}
+                    >
+                      {c.icon || "📦"}
+                    </span>
+                    <span className="text-[11px] leading-tight text-center font-medium text-gray-700 line-clamp-2 px-0.5">
+                      {c.name}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
       )}
