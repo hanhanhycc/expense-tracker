@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
-  Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis, Legend,
+  Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
 import { formatVND } from "@/lib/money";
 
@@ -171,11 +171,6 @@ function ReportContent({ data }: { data: Report }) {
                   <Tooltip
                     contentStyle={{ border: "none", borderRadius: 12, boxShadow: "0 8px 24px rgba(231,72,128,0.18)" }}
                     formatter={(v: number) => formatVND(v)}
-                  />
-                  <Legend
-                    verticalAlign="bottom"
-                    iconType="circle"
-                    formatter={(value) => <span className="text-xs text-gray-700">{value}</span>}
                   />
                 </PieChart>
               </ResponsiveContainer>
