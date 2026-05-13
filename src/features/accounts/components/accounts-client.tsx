@@ -5,6 +5,7 @@ import { useToast } from "@/components/toast";
 import { IconPicker } from "@/components/icon-picker";
 import { AccountBadge } from "@/components/account-badge";
 import { suggestBankFromName } from "@/lib/bank-suggestions";
+import { BankPicker } from "./bank-picker";
 
 export type AccountType = "CASH" | "BANK" | "CARD" | "EWALLET" | "OTHER";
 export type Account = {
@@ -39,6 +40,7 @@ export function AccountsClient({ canManage }: { canManage: boolean }) {
   const [icon, setIcon] = useState("🏦");
   const [iconAuto, setIconAuto] = useState(true);
   const [editing, setEditing] = useState<Account | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const toast = useToast();
 
   async function load() {
@@ -123,34 +125,54 @@ export function AccountsClient({ canManage }: { canManage: boolean }) {
       </div>
 
       {canManage && (
-        <form onSubmit={add} className="card grid grid-cols-12 gap-2 items-end">
-          <div className="col-span-3">
-            <label className="label">Icon</label>
-            <IconPicker value={icon} onChange={(v) => { setIcon(v); setIconAuto(false); }} />
-          </div>
-          <div className="col-span-4">
-            <label className="label">Tên</label>
-            <input
-              className="input"
-              required
-              maxLength={60}
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="VD: Vietcombank"
-            />
-          </div>
-          <div className="col-span-5">
-            <label className="label">Loại</label>
-            <select className="input" value={type} onChange={(e) => setType(e.target.value as AccountType)}>
-              {(Object.keys(TYPE_LABEL) as AccountType[]).map((t) => (
-                <option key={t} value={t}>{TYPE_LABEL[t]}</option>
-              ))}
-            </select>
-          </div>
-          <div className="col-span-12">
-            <button className="btn-primary w-full">+ Thêm tài khoản</button>
-          </div>
-        </form>
+        <>
+          <button
+            type="button"
+            onClick={() => setPickerOpen(true)}
+            className="card w-full flex items-center gap-3 hover:shadow-md transition text-left"
+          >
+            <span className="w-10 h-10 rounded-full bg-primary/10 text-primary text-xl flex items-center justify-center">
+              🏦
+            </span>
+            <span className="flex-1 min-w-0">
+              <span className="block font-medium">Thêm tài khoản từ danh sách</span>
+              <span className="block text-xs text-gray-500">Chọn nhanh ngân hàng / ví phổ biến</span>
+            </span>
+            <span className="text-gray-400">›</span>
+          </button>
+
+          <form onSubmit={add} className="card grid grid-cols-12 gap-2 items-end">
+            <div className="col-span-12">
+              <p className="text-xs text-gray-500">Hoặc nhập thủ công:</p>
+            </div>
+            <div className="col-span-3">
+              <label className="label">Icon</label>
+              <IconPicker value={icon} onChange={(v) => { setIcon(v); setIconAuto(false); }} />
+            </div>
+            <div className="col-span-4">
+              <label className="label">Tên</label>
+              <input
+                className="input"
+                required
+                maxLength={60}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="VD: Vietcombank"
+              />
+            </div>
+            <div className="col-span-5">
+              <label className="label">Loại</label>
+              <select className="input" value={type} onChange={(e) => setType(e.target.value as AccountType)}>
+                {(Object.keys(TYPE_LABEL) as AccountType[]).map((t) => (
+                  <option key={t} value={t}>{TYPE_LABEL[t]}</option>
+                ))}
+              </select>
+            </div>
+            <div className="col-span-12">
+              <button className="btn-primary w-full">+ Thêm tài khoản</button>
+            </div>
+          </form>
+        </>
       )}
 
       {(Object.keys(TYPE_LABEL) as AccountType[]).map((t) => {
@@ -174,6 +196,40 @@ export function AccountsClient({ canManage }: { canManage: boolean }) {
           account={editing}
           onClose={() => setEditing(null)}
           onSaved={() => { setEditing(null); load(); }}
+        />
+      )}
+
+      {pickerOpen && (
+        <BankPicker
+          onClose={() => setPickerOpen(false)}
+          onPick={async (item) => {
+            const exists = items.find(
+              (a) => a.name.trim().toLowerCase() === item.name.trim().toLowerCase(),
+            );
+            if (exists) {
+              toast.error(`Tài khoản "${item.name}" đã tồn tại`);
+              setPickerOpen(false);
+              return;
+            }
+            const suggested = suggestBankFromName(item.name);
+            const r = await fetch("/api/accounts", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({
+                name: item.name,
+                type: item.type,
+                icon: suggested?.icon ?? TYPE_DEFAULT_ICON[item.type],
+                color: suggested?.color ?? null,
+              }),
+            });
+            setPickerOpen(false);
+            if (!r.ok) {
+              toast.error((await r.json().catch(() => ({}))).error || "Thêm thất bại");
+              return;
+            }
+            toast.success(`Đã thêm ${item.name}`);
+            load();
+          }}
         />
       )}
     </div>
