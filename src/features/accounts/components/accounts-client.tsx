@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { useToast } from "@/components/toast";
 import { IconPicker } from "@/components/icon-picker";
+import { AccountBadge } from "@/components/account-badge";
+import { suggestBankFromName } from "@/lib/bank-suggestions";
 
 export type AccountType = "CASH" | "BANK" | "CARD" | "EWALLET" | "OTHER";
 export type Account = {
@@ -35,6 +37,8 @@ export function AccountsClient({ canManage }: { canManage: boolean }) {
   const [name, setName] = useState("");
   const [type, setType] = useState<AccountType>("BANK");
   const [icon, setIcon] = useState("🏦");
+  const [iconAuto, setIconAuto] = useState(true);
+  const [editing, setEditing] = useState<Account | null>(null);
   const toast = useToast();
 
   async function load() {
@@ -48,15 +52,24 @@ export function AccountsClient({ canManage }: { canManage: boolean }) {
 
   // Đổi icon mặc định khi đổi type (nếu user chưa custom)
   useEffect(() => {
-    setIcon(TYPE_DEFAULT_ICON[type]);
-  }, [type]);
+    if (iconAuto) setIcon(TYPE_DEFAULT_ICON[type]);
+  }, [type, iconAuto]);
+
+  // Tự gợi ý icon theo tên (nếu user chưa pick tay)
+  useEffect(() => {
+    if (!iconAuto) return;
+    const s = suggestBankFromName(name);
+    if (s) setIcon(s.icon);
+    else setIcon(TYPE_DEFAULT_ICON[type]);
+  }, [name, type, iconAuto]);
 
   async function add(e: React.FormEvent) {
     e.preventDefault();
+    const suggested = suggestBankFromName(name);
     const r = await fetch("/api/accounts", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ name, type, icon }),
+      body: JSON.stringify({ name, type, icon, color: suggested?.color ?? null }),
     });
     if (!r.ok) {
       toast.error((await r.json().catch(() => ({}))).error || "Thêm tài khoản thất bại");
@@ -64,6 +77,7 @@ export function AccountsClient({ canManage }: { canManage: boolean }) {
     }
     toast.success("Đã thêm tài khoản");
     setName("");
+    setIconAuto(true);
     load();
   }
 
@@ -112,7 +126,7 @@ export function AccountsClient({ canManage }: { canManage: boolean }) {
         <form onSubmit={add} className="card grid grid-cols-12 gap-2 items-end">
           <div className="col-span-3">
             <label className="label">Icon</label>
-            <IconPicker value={icon} onChange={setIcon} />
+            <IconPicker value={icon} onChange={(v) => { setIcon(v); setIconAuto(false); }} />
           </div>
           <div className="col-span-4">
             <label className="label">Tên</label>
@@ -142,8 +156,26 @@ export function AccountsClient({ canManage }: { canManage: boolean }) {
       {(Object.keys(TYPE_LABEL) as AccountType[]).map((t) => {
         const list = grouped[t];
         if (!list.length) return null;
-        return <Section key={t} title={TYPE_LABEL[t]} items={list} canManage={canManage} onSetDefault={setDefault} onDelete={remove} />;
+        return (
+          <Section
+            key={t}
+            title={TYPE_LABEL[t]}
+            items={list}
+            canManage={canManage}
+            onSetDefault={setDefault}
+            onDelete={remove}
+            onEdit={(a) => setEditing(a)}
+          />
+        );
       })}
+
+      {editing && (
+        <EditAccountModal
+          account={editing}
+          onClose={() => setEditing(null)}
+          onSaved={() => { setEditing(null); load(); }}
+        />
+      )}
     </div>
   );
 }
@@ -154,12 +186,14 @@ function Section({
   canManage,
   onSetDefault,
   onDelete,
+  onEdit,
 }: {
   title: string;
   items: Account[];
   canManage: boolean;
   onSetDefault: (id: string) => void;
   onDelete: (id: string) => void;
+  onEdit: (a: Account) => void;
 }) {
   return (
     <div className="card">
@@ -168,7 +202,7 @@ function Section({
         {items.map((a) => (
           <li key={a.id} className="py-2 flex items-center justify-between gap-2">
             <span className="flex items-center gap-2 min-w-0 flex-1">
-              <span className="text-lg">{a.icon || "💼"}</span>
+              <AccountBadge name={a.name} icon={a.icon} color={a.color} size={36} />
               <span className="truncate">{a.name}</span>
               {a.isDefault && <span className="chip bg-primary/10 text-primary text-[10px]">mặc định</span>}
             </span>
@@ -179,12 +213,114 @@ function Section({
                     Đặt mặc định
                   </button>
                 )}
+                <button onClick={() => onEdit(a)} className="text-xs text-primary hover:underline">Sửa</button>
                 <button onClick={() => onDelete(a.id)} className="text-xs text-danger hover:underline">Xoá</button>
               </div>
             )}
           </li>
         ))}
       </ul>
+    </div>
+  );
+}
+
+function EditAccountModal({
+  account,
+  onClose,
+  onSaved,
+}: {
+  account: Account;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [name, setName] = useState(account.name);
+  const [type, setType] = useState<AccountType>(account.type);
+  const [icon, setIcon] = useState(account.icon || TYPE_DEFAULT_ICON[account.type]);
+  const [loading, setLoading] = useState(false);
+  const toast = useToast();
+
+  function applySuggestion() {
+    const s = suggestBankFromName(name);
+    if (s) {
+      setIcon(s.icon);
+      toast.success(`Áp dụng icon ${s.icon} cho ${s.label}`);
+    } else {
+      toast.error("Chưa có gợi ý cho tên này");
+    }
+  }
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    const suggested = suggestBankFromName(name);
+    const r = await fetch(`/api/accounts/${account.id}`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        name,
+        type,
+        icon,
+        color: suggested?.color ?? account.color ?? null,
+      }),
+    });
+    setLoading(false);
+    if (!r.ok) {
+      toast.error((await r.json().catch(() => ({}))).error || "Lưu thất bại");
+      return;
+    }
+    toast.success("Đã cập nhật");
+    onSaved();
+  }
+
+  return (
+    <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <form
+        onSubmit={save}
+        onClick={(e) => e.stopPropagation()}
+        className="bg-white rounded-2xl p-5 w-full max-w-md space-y-3 shadow-xl"
+      >
+        <div className="flex justify-between items-center">
+          <h2 className="font-semibold">Sửa tài khoản</h2>
+          <button type="button" onClick={onClose} className="text-gray-500">✕</button>
+        </div>
+
+        <div className="grid grid-cols-12 gap-2 items-end">
+          <div className="col-span-3">
+            <label className="label">Icon</label>
+            <IconPicker value={icon} onChange={setIcon} />
+          </div>
+          <div className="col-span-9">
+            <label className="label">Tên</label>
+            <input
+              className="input"
+              required
+              maxLength={60}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="label">Loại</label>
+          <select className="input" value={type} onChange={(e) => setType(e.target.value as AccountType)}>
+            {(Object.keys(TYPE_LABEL) as AccountType[]).map((t) => (
+              <option key={t} value={t}>{TYPE_LABEL[t]}</option>
+            ))}
+          </select>
+        </div>
+
+        <button type="button" onClick={applySuggestion} className="text-xs text-primary hover:underline">
+          🪄 Tự gợi ý icon theo tên
+        </button>
+
+        <div className="flex gap-2 pt-2">
+          <button type="button" onClick={onClose} className="btn-ghost flex-1">Huỷ</button>
+          <button className="btn-primary flex-1" disabled={loading}>
+            {loading ? "Đang lưu..." : "Lưu"}
+          </button>
+        </div>
+      </form>
     </div>
   );
 }
