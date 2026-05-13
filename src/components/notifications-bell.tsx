@@ -22,6 +22,29 @@ type FetchResponse = {
 
 const POLL_MS = 60_000;
 
+/**
+ * Set/clear app icon badge khi PWA đã add to home screen.
+ * Browser không support hoặc app mở trong tab thường → noop.
+ */
+type BadgeNavigator = Navigator & {
+  setAppBadge?: (n?: number) => Promise<void>;
+  clearAppBadge?: () => Promise<void>;
+};
+
+function updateAppBadge(count: number) {
+  if (typeof navigator === "undefined") return;
+  const nav = navigator as BadgeNavigator;
+  try {
+    if (count > 0 && typeof nav.setAppBadge === "function") {
+      void nav.setAppBadge(count).catch(() => {});
+    } else if (count === 0 && typeof nav.clearAppBadge === "function") {
+      void nav.clearAppBadge().catch(() => {});
+    }
+  } catch {
+    /* ignore — browser không support */
+  }
+}
+
 function timeAgo(iso: string): string {
   const d = new Date(iso).getTime();
   const diff = Math.max(0, Date.now() - d);
@@ -51,6 +74,7 @@ export function NotificationsBell() {
       const data = (await res.json()) as FetchResponse;
       setItems(data.items);
       setUnreadCount(data.unreadCount);
+      updateAppBadge(data.unreadCount);
     } catch {
       /* ignore */
     }
@@ -84,6 +108,7 @@ export function NotificationsBell() {
       await fetch("/api/notifications", { method: "PATCH" });
       setItems((prev) => prev.map((n) => (n.readAt ? n : { ...n, readAt: new Date().toISOString() })));
       setUnreadCount(0);
+      updateAppBadge(0);
     } finally {
       setLoading(false);
     }
@@ -91,7 +116,11 @@ export function NotificationsBell() {
 
   const markOneRead = useCallback(async (id: string) => {
     setItems((prev) => prev.map((n) => (n.id === id && !n.readAt ? { ...n, readAt: new Date().toISOString() } : n)));
-    setUnreadCount((c) => Math.max(0, c - 1));
+    setUnreadCount((c) => {
+      const next = Math.max(0, c - 1);
+      updateAppBadge(next);
+      return next;
+    });
     try {
       await fetch(`/api/notifications/${id}`, { method: "PATCH" });
     } catch {
