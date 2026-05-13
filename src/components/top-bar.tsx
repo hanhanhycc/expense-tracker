@@ -4,6 +4,7 @@ import Link from "next/link";
 import { signOut, useSession } from "next-auth/react";
 import { useRef, useState } from "react";
 import { useClickOutside } from "@/lib/use-click-outside";
+import { NotificationsBell } from "./notifications-bell";
 
 export function TopBar() {
   const { data } = useSession();
@@ -31,6 +32,8 @@ export function TopBar() {
           <Link href="/add" className="btn-primary !py-2 !px-4 ml-2">+ Thêm</Link>
         </nav>
 
+        <div className="flex items-center gap-1">
+        <NotificationsBell />
         <div className="relative" ref={menuRef}>
           <button
             onClick={() => setOpen((o) => !o)}
@@ -70,6 +73,7 @@ export function TopBar() {
               </button>
             </div>
           )}
+        </div>
         </div>
       </div>
     </header>

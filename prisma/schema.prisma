@@ -83,6 +83,7 @@ model Family {
   transactions   Transaction[]
   savingGoals    SavingGoal[]
   invites        Invite[]
+  notifications  Notification[]
 
   @@map("families")
 }
@@ -104,6 +105,8 @@ model FamilyMember {
   goalMemberships     SavingGoalMember[]
   contributions       SavingContribution[]
   budgets             Budget[]
+  notifications       Notification[]       @relation("NotifRecipient")
+  actedNotifications  Notification[]       @relation("NotifActor")
 
   @@unique([userId, familyId])
   @@index([familyId])
@@ -299,5 +302,33 @@ model ActivityLog {
   @@index([familyId, createdAt])
   @@index([familyId, entity])
   @@map("activity_logs")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Notifications — thông báo in-app cho từng member
+// ─────────────────────────────────────────────────────────────
+
+model Notification {
+  id          String    @id @default(cuid())
+  familyId    String
+  recipientId String    // FamilyMember nhận thông báo
+  actorId     String?   // FamilyMember tạo ra hành động (null nếu hệ thống)
+  actorName   String    // snapshot tên actor
+  type        String    // TRANSACTION_SHARED | TRANSACTION_SHARE_UPDATED
+  entity      String    // transaction
+  entityId    String?
+  summary     String    // mô tả tiếng Việt
+  metadata    Json?
+  readAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  family    Family       @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  recipient FamilyMember @relation("NotifRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  actor     FamilyMember? @relation("NotifActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([recipientId, readAt])
+  @@index([recipientId, createdAt])
+  @@index([familyId])
+  @@map("notifications")
 }
 

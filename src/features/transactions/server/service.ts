@@ -2,7 +2,17 @@ import { prisma } from "@/lib/db";
 import { splitEqual, sumMoney, toDecimal, validateSplitCustom } from "@/lib/money";
 import { Prisma, SplitType, Visibility } from "@prisma/client";
 import { deleteReceipt } from "@/lib/upload";
+import { notifyShareRecipients } from "@/lib/notify";
 import type { TransactionInput, TransactionFilter } from "./schema";
+
+async function getActorSnapshot(memberId: string): Promise<{ memberId: string; name: string } | null> {
+  const m = await prisma.familyMember.findUnique({
+    where: { id: memberId },
+    select: { id: true, user: { select: { name: true } } },
+  });
+  if (!m) return null;
+  return { memberId: m.id, name: m.user.name };
+}
 
 /**
  * Visibility scope cho 1 thành viên:
@@ -110,16 +120,34 @@ export async function createTransaction(familyId: string, createdById: string, i
     }
   }
 
-  return prisma.transaction.create({
+  const created = await prisma.transaction.create({
     data: {
       ...data,
       shares: sharesCreate.length ? { createMany: { data: sharesCreate } } : undefined,
     },
   });
+
+  if (visibility === "SHARED" && sharesCreate.length > 0) {
+    const actor = await getActorSnapshot(createdById);
+    if (actor) {
+      await notifyShareRecipients({
+        familyId,
+        actor,
+        tx: { id: created.id, amount: created.amount.toString(), note: created.note, date: created.date, type: created.type },
+        shares: sharesCreate.map((s) => ({ memberId: s.memberId, amount: s.amount.toString() })),
+        notifType: "TRANSACTION_SHARED",
+      });
+    }
+  }
+
+  return created;
 }
 
 export async function updateTransaction(familyId: string, memberId: string, id: string, input: TransactionInput) {
-  const existing = await prisma.transaction.findFirst({ where: { id, familyId, deletedAt: null } });
+  const existing = await prisma.transaction.findFirst({
+    where: { id, familyId, deletedAt: null },
+    include: { shares: { select: { memberId: true, amount: true } } },
+  });
   if (!existing) throw new Error("Không tìm thấy giao dịch");
   if (existing.createdById !== memberId) throw new Error("Chỉ người tạo mới được sửa giao dịch này");
 
@@ -140,7 +168,7 @@ export async function updateTransaction(familyId: string, memberId: string, id: 
     }
   }
 
-  return prisma.transaction.update({
+  const updated = await prisma.transaction.update({
     where: { id },
     data: {
       amount: new Prisma.Decimal(input.amount),
@@ -154,6 +182,30 @@ export async function updateTransaction(familyId: string, memberId: string, id: 
       shares: sharesCreate.length ? { createMany: { data: sharesCreate } } : undefined,
     },
   });
+
+  // Thông báo cho member mới được thêm vào share; khi share cũ đổi số tiền cũng notify.
+  if (input.visibility === "SHARED" && sharesCreate.length > 0) {
+    const oldMap = new Map(existing.shares.map((s) => [s.memberId, s.amount.toString()]));
+    const newOrChanged = sharesCreate.filter((s) => {
+      const prev = oldMap.get(s.memberId);
+      if (prev == null) return true; // member mới
+      return prev !== s.amount.toString(); // share đổi số tiền
+    });
+    if (newOrChanged.length > 0) {
+      const actor = await getActorSnapshot(memberId);
+      if (actor) {
+        await notifyShareRecipients({
+          familyId,
+          actor,
+          tx: { id: updated.id, amount: updated.amount.toString(), note: updated.note, date: updated.date, type: updated.type },
+          shares: newOrChanged.map((s) => ({ memberId: s.memberId, amount: s.amount.toString() })),
+          notifType: "TRANSACTION_SHARE_UPDATED",
+        });
+      }
+    }
+  }
+
+  return updated;
 }
 
 export async function softDeleteTransaction(familyId: string, memberId: string, id: string) {
