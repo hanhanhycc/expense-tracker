@@ -9,6 +9,7 @@ const schema = z.object({
   color: z.string().max(20).optional().nullable(),
   parentId: z.string().optional().nullable(),
   isEnabled: z.boolean().optional(),
+  sortOrder: z.number().int().min(0).max(10_000).optional(),
 });
 
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
