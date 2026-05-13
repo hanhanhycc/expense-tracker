@@ -14,6 +14,10 @@ RUN pnpm install --no-frozen-lockfile
 FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+# VAPID public key cần có ở build time vì Next.js inline NEXT_PUBLIC_* vào client bundle.
+# Nếu để trống, web push bị tắt (in-app notification + polling vẫn chạy).
+ARG NEXT_PUBLIC_VAPID_PUBLIC_KEY=""
+ENV NEXT_PUBLIC_VAPID_PUBLIC_KEY=$NEXT_PUBLIC_VAPID_PUBLIC_KEY
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN pnpm prisma generate && pnpm build
 

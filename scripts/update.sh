@@ -104,5 +104,10 @@ fi
 log "🧹 Xoá image cũ..."
 docker image prune -f >/dev/null || true
 
+# Warn nếu .env chưa có VAPID — web push sẽ disabled, chỉ in-app notification chạy.
+if ! grep -q "^VAPID_PRIVATE_KEY=." "$APP_DIR/.env"; then
+  log "ℹ️  .env chưa có VAPID keys → web push disabled. Chạy 'bash scripts/setup-push.sh' để bật."
+fi
+
 log "✅ Update xong!"
 $DC -f "$COMPOSE_FILE" ps
