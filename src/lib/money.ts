@@ -50,3 +50,23 @@ export function splitEqual(amount: Money, n: number): Decimal[] {
 export function validateSplitCustom(amount: Money, parts: Money[]): boolean {
   return sumMoney(parts).equals(toDecimal(amount));
 }
+
+/**
+ * Chia đều amount cho `payerId + sharedIds` (dedupe). Trả về danh sách share
+ * cho các thành viên KHÔNG phải payer; payer giữ phần dư (residual).
+ *
+ * VD: A trả 2.000.000 share với B → [{B: 1.000.000}], A giữ 1.000.000 (residual).
+ * VD: 1.000.001 trả bởi A, share với B,C → [{B: 333.333}, {C: 333.333}], A giữ 333.335.
+ */
+export function splitEqualForPayer(
+  amount: Money,
+  payerId: string,
+  sharedIds: string[],
+): { memberId: string; amount: string }[] {
+  const participants = Array.from(new Set([payerId, ...sharedIds]));
+  if (participants.length <= 1) return [];
+  const parts = splitEqual(amount, participants.length);
+  const nonPayers = participants.filter((p) => p !== payerId);
+  // parts[0] luôn là phần của payer (chứa phần dư). Non-payer nhận parts[1..].
+  return nonPayers.map((mid, i) => ({ memberId: mid, amount: parts[i + 1].toString() }));
+}

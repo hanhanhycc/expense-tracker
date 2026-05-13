@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { splitEqual, sumMoney, toDecimal, validateSplitCustom } from "@/lib/money";
+import { splitEqualForPayer, sumMoney, toDecimal, validateSplitCustom } from "@/lib/money";
 import { Prisma, SplitType, Visibility } from "@prisma/client";
 import { deleteReceipt } from "@/lib/upload";
 import { notifyShareRecipients } from "@/lib/notify";
@@ -81,7 +81,7 @@ export async function listTransactions(familyId: string, memberId: string, filte
 }
 
 export async function createTransaction(familyId: string, createdById: string, input: TransactionInput) {
-  const { sharedMemberIds, customShares, splitType, visibility, amount } = input;
+  const { sharedMemberIds, customShares, splitType, visibility, amount, paidById } = input;
   const data: Prisma.TransactionCreateInput = {
     family: { connect: { id: familyId } },
     amount: new Prisma.Decimal(amount),
@@ -98,10 +98,9 @@ export async function createTransaction(familyId: string, createdById: string, i
   let sharesCreate: Prisma.TransactionShareCreateManyTransactionInput[] = [];
   if (visibility === "SHARED" && sharedMemberIds.length > 0) {
     if (splitType === SplitType.EQUAL) {
-      const parts = splitEqual(amount, sharedMemberIds.length);
-      sharesCreate = sharedMemberIds.map((mid, i) => ({
-        memberId: mid,
-        amount: new Prisma.Decimal(parts[i].toString()),
+      sharesCreate = splitEqualForPayer(amount, paidById, sharedMemberIds).map((s) => ({
+        memberId: s.memberId,
+        amount: new Prisma.Decimal(s.amount),
       }));
     } else if (splitType === SplitType.CUSTOM) {
       if (!validateSplitCustom(amount, customShares.map((c) => c.amount))) {
@@ -156,8 +155,10 @@ export async function updateTransaction(familyId: string, memberId: string, id: 
   let sharesCreate: Prisma.TransactionShareCreateManyTransactionInput[] = [];
   if (input.visibility === "SHARED" && input.sharedMemberIds.length > 0) {
     if (input.splitType === SplitType.EQUAL) {
-      const parts = splitEqual(input.amount, input.sharedMemberIds.length);
-      sharesCreate = input.sharedMemberIds.map((mid, i) => ({ memberId: mid, amount: new Prisma.Decimal(parts[i].toString()) }));
+      sharesCreate = splitEqualForPayer(input.amount, input.paidById, input.sharedMemberIds).map((s) => ({
+        memberId: s.memberId,
+        amount: new Prisma.Decimal(s.amount),
+      }));
     } else if (input.splitType === SplitType.CUSTOM) {
       if (!validateSplitCustom(input.amount, input.customShares.map((c) => c.amount))) {
         throw new Error("Tổng các phần chia phải bằng số tiền giao dịch");

@@ -32,7 +32,7 @@ export function TopBar() {
           <Link href="/add" className="btn-primary !py-2 !px-4 ml-2">+ Thêm</Link>
         </nav>
 
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-3 sm:gap-4">
         <NotificationsBell />
         <div className="relative" ref={menuRef}>
           <button

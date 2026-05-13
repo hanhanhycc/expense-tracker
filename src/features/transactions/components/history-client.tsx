@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { formatVND } from "@/lib/money";
 import { formatDate } from "@/lib/date";
 import { TransactionForm, type TransactionFormInitial } from "@/features/transactions/components/transaction-form";
@@ -40,6 +41,8 @@ export function HistoryClient({ currentMemberId }: { currentMemberId: string }) 
   const [total, setTotal] = useState(0);
   const [editing, setEditing] = useState<Tx | null>(null);
   const [viewingReceipt, setViewingReceipt] = useState<Tx | null>(null);
+  const [highlightId, setHighlightId] = useState<string | null>(null);
+  const searchParams = useSearchParams();
   const toast = useToast();
 
   const initialFilter = { from: "", to: "", categoryId: "", memberId: "", visibility: "ALL", q: "" };
@@ -70,6 +73,21 @@ export function HistoryClient({ currentMemberId }: { currentMemberId: string }) 
   }, []);
 
   useEffect(() => { load(true, 1); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [applied]);
+
+  // Deep-link: ?txId=xxx → highlight + scroll tới giao dịch đó.
+  useEffect(() => {
+    const txId = searchParams?.get("txId");
+    if (!txId || loading) return;
+    const found = items.find((t) => t.id === txId);
+    if (!found) return;
+    setHighlightId(txId);
+    // Defer để DOM render xong.
+    requestAnimationFrame(() => {
+      document.getElementById(`tx-${txId}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+    const timer = setTimeout(() => setHighlightId(null), 3000);
+    return () => clearTimeout(timer);
+  }, [searchParams, items, loading]);
 
   async function onDelete(id: string) {
     if (!confirm("Xoá giao dịch này?")) return;
@@ -264,8 +282,13 @@ export function HistoryClient({ currentMemberId }: { currentMemberId: string }) 
                   </div>
                 </div>
               );
+              const highlight = highlightId === t.id;
               return (
-                <li key={t.id}>
+                <li
+                  key={t.id}
+                  id={`tx-${t.id}`}
+                  className={highlight ? "bg-rose-50 ring-2 ring-primary/50 transition" : "transition"}
+                >
                   {isOwner ? (
                     <SwipeActions
                       rightActions={[
