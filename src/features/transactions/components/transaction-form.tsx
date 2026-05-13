@@ -22,12 +22,14 @@ function waitMs(ms: number) {
 
 type Category = { id: string; name: string; kind: "INCOME" | "EXPENSE"; icon: string | null; color: string | null };
 type Member = { id: string; user: { id: string; name: string }; role: string };
+type Account = { id: string; name: string; type: string; icon: string | null; isDefault: boolean };
 
 export type TransactionFormInitial = {
   id?: string;
   type?: "INCOME" | "EXPENSE";
   amount?: string;
   categoryId?: string;
+  accountId?: string | null;
   note?: string;
   date?: string;
   paidById?: string;
@@ -42,10 +44,12 @@ export function TransactionForm({ initial, currentMemberId }: { initial?: Transa
   const toast = useToast();
   const [categories, setCategories] = useState<Category[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
 
   const [type, setType] = useState<"INCOME" | "EXPENSE">(initial?.type ?? "EXPENSE");
   const [amount, setAmount] = useState<string>(initial?.amount ?? "");
   const [categoryId, setCategoryId] = useState(initial?.categoryId ?? "");
+  const [accountId, setAccountId] = useState<string>(initial?.accountId ?? "");
   const [note, setNote] = useState(initial?.note ?? "");
   const [date, setDate] = useState(initial?.date ?? new Date().toISOString().slice(0, 10));
   const [paidById, setPaidById] = useState(initial?.paidById ?? currentMemberId);
@@ -92,6 +96,16 @@ export function TransactionForm({ initial, currentMemberId }: { initial?: Transa
   useEffect(() => {
     fetch("/api/categories").then((r) => r.json()).then((d) => setCategories(d.items || []));
     fetch("/api/members").then((r) => r.json()).then((d) => setMembers(d.items || []));
+    fetch("/api/accounts").then((r) => r.json()).then((d) => {
+      const list: Account[] = d.items || [];
+      setAccounts(list);
+      // Nếu form mới chưa chọn account → auto chọn default
+      if (!initial?.accountId && !accountId && list.length > 0) {
+        const def = list.find((a) => a.isDefault) || list[0];
+        setAccountId(def.id);
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const filteredCats = categories.filter((c) => c.kind === type);
@@ -109,6 +123,7 @@ export function TransactionForm({ initial, currentMemberId }: { initial?: Transa
       amount: Number(parseMoneyInput(amount).toString()),
       type,
       categoryId,
+      accountId: accountId || null,
       note: note || null,
       date,
       paidById,
@@ -222,6 +237,18 @@ export function TransactionForm({ initial, currentMemberId }: { initial?: Transa
             ))}
           </select>
         </div>
+      </div>
+
+      <div>
+        <label className="label">Tài khoản</label>
+        <select className="input" value={accountId} onChange={(e) => setAccountId(e.target.value)}>
+          <option value="">— Không chọn —</option>
+          {accounts.map((a) => (
+            <option key={a.id} value={a.id}>
+              {a.icon ? `${a.icon} ` : ""}{a.name}
+            </option>
+          ))}
+        </select>
       </div>
 
       <div>

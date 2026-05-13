@@ -22,18 +22,22 @@ type Tx = {
   paidById: string;
   createdById: string;
   categoryId: string;
+  accountId: string | null;
   receiptPath: string | null;
   category: { name: string; icon: string | null; color: string | null };
+  account: { id: string; name: string; icon: string | null } | null;
   paidBy: { id: string; user: { name: string } };
   shares: { memberId: string; amount: string; member: { user: { name: string } } }[];
 };
 type Cat = { id: string; name: string; kind: "INCOME" | "EXPENSE" };
 type Member = { id: string; user: { name: string } };
+type Acc = { id: string; name: string; icon: string | null };
 
 export function HistoryClient({ currentMemberId }: { currentMemberId: string }) {
   const [items, setItems] = useState<Tx[]>([]);
   const [cats, setCats] = useState<Cat[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
+  const [accs, setAccs] = useState<Acc[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [page, setPage] = useState(1);
@@ -45,7 +49,7 @@ export function HistoryClient({ currentMemberId }: { currentMemberId: string }) 
   const searchParams = useSearchParams();
   const toast = useToast();
 
-  const initialFilter = { from: "", to: "", categoryId: "", memberId: "", visibility: "ALL", q: "" };
+  const initialFilter = { from: "", to: "", categoryId: "", accountId: "", memberId: "", visibility: "ALL", q: "" };
   const [filter, setFilter] = useState(initialFilter);
   const [applied, setApplied] = useState(initialFilter);
 
@@ -70,6 +74,7 @@ export function HistoryClient({ currentMemberId }: { currentMemberId: string }) 
   useEffect(() => {
     fetch("/api/categories").then((r) => r.json()).then((d) => setCats(d.items || []));
     fetch("/api/members").then((r) => r.json()).then((d) => setMembers(d.items || []));
+    fetch("/api/accounts").then((r) => r.json()).then((d) => setAccs(d.items || []));
   }, []);
 
   useEffect(() => { load(true, 1); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [applied]);
@@ -114,6 +119,7 @@ export function HistoryClient({ currentMemberId }: { currentMemberId: string }) 
       type: editing.type,
       amount: editing.amount,
       categoryId: editing.categoryId,
+      accountId: editing.accountId,
       note: editing.note ?? "",
       date: editing.date.slice(0, 10),
       paidById: editing.paidById,
@@ -209,6 +215,13 @@ export function HistoryClient({ currentMemberId }: { currentMemberId: string }) 
           </select>
         </div>
         <div>
+          <label className="label">Tài khoản</label>
+          <select className="input" value={filter.accountId} onChange={(e) => setFilter({ ...filter, accountId: e.target.value })}>
+            <option value="">Tất cả</option>
+            {accs.map((a) => <option key={a.id} value={a.id}>{a.icon ? `${a.icon} ` : ""}{a.name}</option>)}
+          </select>
+        </div>
+        <div>
           <label className="label">Loại</label>
           <select className="input" value={filter.visibility} onChange={(e) => setFilter({ ...filter, visibility: e.target.value })}>
             <option value="ALL">Tất cả</option>
@@ -261,6 +274,7 @@ export function HistoryClient({ currentMemberId }: { currentMemberId: string }) 
                     </p>
                     <p className="text-xs text-gray-500 truncate">
                       {formatDate(t.date)} · {t.paidBy.user.name}
+                      {t.account ? ` · ${t.account.icon ? `${t.account.icon} ` : ""}${t.account.name}` : ""}
                       {t.note ? ` · ${t.note}` : ""}
                     </p>
                     {t.shares.length > 0 && (

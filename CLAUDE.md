@@ -55,6 +55,7 @@
 - Export CSV: transactions + saving contributions.
 - PWA: manifest + SW cache shell.
 - **Notifications (đã thêm sau MVP gốc)**: in-app bell + page `/notifications` + Web Push real-time tới home screen (VAPID). Trigger khi share/sửa share giao dịch.
+- **Accounts (đã thêm sau MVP gốc — Mức A label-only)**: bảng `accounts` (Cash/Bank/Card/E-wallet), CRUD ở `/settings/accounts`, Transaction.accountId nullable, hiển thị + filter ở history. **KHÔNG** track balance hay transfer.
 
 ---
 
@@ -62,7 +63,6 @@
 
 Nếu user yêu cầu các thứ dưới đây — **cảnh báo + hỏi xác nhận**:
 
-- ❌ Quản lý ví/tài khoản ngân hàng.
 - ❌ Sync ngân hàng / import sao kê.
 - ❌ Đa tiền tệ + tỷ giá.
 - ❌ Đầu tư, chứng khoán, crypto.
@@ -72,8 +72,11 @@ Nếu user yêu cầu các thứ dưới đây — **cảnh báo + hỏi xác nh
 - ❌ Kế toán doanh nghiệp / hoá đơn VAT.
 - ❌ OCR hoá đơn / AI gợi ý.
 - ❌ Dark mode (để v0.2 nếu rảnh).
+- ❌ **Balance tracking** cho account (số dư hiện tại). Chỉ làm Mức A: account = label.
+- ❌ **Transfer giữa accounts** (chuyển tiền VCB → TPB). Để v0.3 nếu cần.
 
 > 📝 *Notification push **đã được thêm** sau MVP gốc — không còn trong danh sách cấm. Xem mục 17.*
+> 📝 *Account labeling (Cash/Bank/Card/E-wallet) **đã được thêm** sau MVP gốc — Mức A, label-only, không track balance. Xem mục 18.*
 
 > **Mantra**: *"App này KHÔNG phải MoneyLover/YNAB. Nó là sổ thu chi gia đình đơn giản."*
 
@@ -294,6 +297,31 @@ test(split): thêm test cho splitEqual với phần dư
 - **Không spam** request permission lúc mở app. Chỉ hỏi khi user click button "Bật thông báo đẩy" trong bell dropdown.
 - Nếu `Notification.permission === "granted"` rồi → silent refresh subscription mỗi lần mount (idempotent).
 - Nếu `denied` → hiển thị hint nhỏ trong dropdown, **không** prompt lại.
+
+---
+
+## 🏦 18. Accounts (Mức A — label-only)
+
+### 18.1 Scope
+- Bảng `accounts`: id, familyId, name, type (CASH/BANK/CARD/EWALLET/OTHER), icon, color, isDefault, soft delete.
+- `Transaction.accountId` **nullable** (để migrate giao dịch cũ; new transaction được auto-default từ form).
+- CRUD ở `/settings/accounts` (member view-only, ADMIN/OWNER edit).
+- Soft delete (deletedAt) — giao dịch cũ vẫn ref `accountId` nhưng account ẩn khỏi list.
+
+### 18.2 Cấm trong Mức A
+- **KHÔNG** track balance (`initialBalance`, current balance) — đó là Mức B.
+- **KHÔNG** transfer giữa accounts (1 chiều) — đó là Mức C.
+- **KHÔNG** dùng account để tính tổng tài sản ở dashboard.
+
+Nếu user muốn Mức B/C → cảnh báo + hỏi xác nhận (xem mục 16).
+
+### 18.3 Default seed
+- `GET /api/accounts` auto-tạo "Tiền mặt" default cho family chưa có account nào (idempotent).
+- Seed cho family demo + family thật trong `prisma/seed.ts`.
+
+### 18.4 Form transaction
+- Auto-chọn account mặc định (isDefault=true) khi tạo giao dịch mới.
+- User có thể chọn "— Không chọn —" → `accountId = null`.
 
 ---
 

@@ -1,4 +1,4 @@
-import { PrismaClient, CategoryKind, Role, TxType, Visibility, SplitType, GoalStatus } from "@prisma/client";
+import { PrismaClient, AccountType, CategoryKind, Role, TxType, Visibility, SplitType, GoalStatus } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
@@ -24,6 +24,11 @@ const DEFAULT_INCOME_CATEGORIES = [
   { name: "Khác", icon: "💰", color: "#6b7280" },
 ];
 
+const DEFAULT_ACCOUNTS = [
+  { name: "Tiền mặt", type: AccountType.CASH, icon: "💵", color: "#10b981", isDefault: true },
+  { name: "Vietcombank", type: AccountType.BANK, icon: "🏦", color: "#16a34a", isDefault: false },
+];
+
 async function main() {
   console.log("🌱 Seeding database...");
 
@@ -43,6 +48,11 @@ async function main() {
       ...DEFAULT_EXPENSE_CATEGORIES.map((c) => ({ ...c, kind: CategoryKind.EXPENSE, isDefault: true, familyId: family.id })),
       ...DEFAULT_INCOME_CATEGORIES.map((c) => ({ ...c, kind: CategoryKind.INCOME, isDefault: true, familyId: family.id })),
     ],
+  });
+
+  // Seed default accounts
+  await prisma.account.createMany({
+    data: DEFAULT_ACCOUNTS.map((a) => ({ ...a, familyId: family.id })),
   });
 
   // Tạo 2 users + members
@@ -160,6 +170,9 @@ async function main() {
         ...DEFAULT_EXPENSE_CATEGORIES.map((c) => ({ ...c, kind: CategoryKind.EXPENSE, isDefault: true, familyId: realFamily.id })),
         ...DEFAULT_INCOME_CATEGORIES.map((c) => ({ ...c, kind: CategoryKind.INCOME, isDefault: true, familyId: realFamily.id })),
       ],
+    });
+    await prisma.account.createMany({
+      data: DEFAULT_ACCOUNTS.map((a) => ({ ...a, familyId: realFamily.id })),
     });
     const realPasswordHash = await bcrypt.hash("12345678", 12);
     const realUser = await prisma.user.create({

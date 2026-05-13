@@ -53,6 +53,14 @@ enum BudgetScope {
   SHARED   // ngân sách chung của cả family
 }
 
+enum AccountType {
+  CASH    // Tiền mặt
+  BANK    // Ngân hàng (Vietcombank, TPBank…)
+  CARD    // Thẻ tín dụng (Visa, Master…)
+  EWALLET // Ví điện tử (Momo, ZaloPay…)
+  OTHER
+}
+
 // ─────────────────────────────────────────────────────────────
 // Auth & Family
 // ─────────────────────────────────────────────────────────────
@@ -84,6 +92,7 @@ model Family {
   savingGoals    SavingGoal[]
   invites        Invite[]
   notifications  Notification[]
+  accounts       Account[]
 
   @@map("families")
 }
@@ -191,6 +200,7 @@ model Transaction {
   amount      Decimal    @db.Decimal(18, 2)
   type        TxType
   categoryId  String
+  accountId   String?    // nullable để migrate giao dịch cũ; new transactions nên có
   note        String?
   date        DateTime   @db.Date
   createdById String
@@ -204,6 +214,7 @@ model Transaction {
 
   family    Family       @relation(fields: [familyId], references: [id], onDelete: Cascade)
   category  Category     @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  account   Account?     @relation(fields: [accountId], references: [id], onDelete: SetNull)
   createdBy FamilyMember @relation("CreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
   paidBy    FamilyMember @relation("PaidBy", fields: [paidById], references: [id], onDelete: Restrict)
   shares    TransactionShare[]
@@ -211,6 +222,7 @@ model Transaction {
   @@index([familyId])
   @@index([familyId, date])
   @@index([familyId, categoryId])
+  @@index([familyId, accountId])
   @@map("transactions")
 }
 
@@ -351,5 +363,29 @@ model PushSubscription {
 
   @@index([memberId])
   @@map("push_subscriptions")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Accounts — nguồn tiền (Cash / Bank / Card / E-wallet)
+// Label cho transaction. KHÔNG track balance hay transfer (Mức A).
+// ─────────────────────────────────────────────────────────────
+
+model Account {
+  id        String      @id @default(cuid())
+  familyId  String
+  name      String      // "Cash", "Vietcombank", "TPBank", "Visa"
+  type      AccountType
+  icon      String?
+  color     String?
+  isDefault Boolean     @default(false)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  deletedAt DateTime?
+
+  family       Family        @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+
+  @@index([familyId])
+  @@map("accounts")
 }
 

@@ -36,6 +36,7 @@ export async function listTransactions(familyId: string, memberId: string, filte
     AND: [memberScopeFilter(memberId)],
   };
   if (filter.categoryId) where.categoryId = filter.categoryId;
+  if (filter.accountId) where.accountId = filter.accountId;
   if (filter.from || filter.to) {
     where.date = {};
     if (filter.from) (where.date as Prisma.DateTimeFilter).gte = new Date(filter.from);
@@ -67,6 +68,7 @@ export async function listTransactions(familyId: string, memberId: string, filte
       where,
       include: {
         category: true,
+        account: true,
         paidBy: { include: { user: true } },
         createdBy: { include: { user: true } },
         shares: { include: { member: { include: { user: true } } } },
@@ -81,12 +83,13 @@ export async function listTransactions(familyId: string, memberId: string, filte
 }
 
 export async function createTransaction(familyId: string, createdById: string, input: TransactionInput) {
-  const { sharedMemberIds, customShares, splitType, visibility, amount, paidById } = input;
+  const { sharedMemberIds, customShares, splitType, visibility, amount, paidById, accountId } = input;
   const data: Prisma.TransactionCreateInput = {
     family: { connect: { id: familyId } },
     amount: new Prisma.Decimal(amount),
     type: input.type,
     category: { connect: { id: input.categoryId } },
+    account: accountId ? { connect: { id: accountId } } : undefined,
     note: input.note ?? null,
     date: new Date(input.date),
     createdBy: { connect: { id: createdById } },
@@ -175,6 +178,7 @@ export async function updateTransaction(familyId: string, memberId: string, id: 
       amount: new Prisma.Decimal(input.amount),
       type: input.type,
       categoryId: input.categoryId,
+      accountId: input.accountId || null,
       note: input.note ?? null,
       date: new Date(input.date),
       paidById: input.paidById,
