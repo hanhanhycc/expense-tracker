@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { SkeletonList } from "@/components/skeleton";
+import { SwipeActions } from "@/components/swipe-actions";
+import { useToast } from "@/components/toast";
 
 type NotificationItem = {
   id: string;
@@ -32,6 +34,7 @@ export function NotificationsClient() {
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [marking, setMarking] = useState(false);
+  const toast = useToast();
 
   const fetchAll = useCallback(async () => {
     try {
@@ -73,6 +76,21 @@ export function NotificationsClient() {
     return null;
   }
 
+  const deleteOne = useCallback(
+    async (id: string) => {
+      const target = items.find((n) => n.id === id);
+      setItems((prev) => prev.filter((n) => n.id !== id));
+      try {
+        const res = await fetch(`/api/notifications/${id}`, { method: "DELETE" });
+        if (!res.ok) throw new Error();
+      } catch {
+        toast.error("Xoá thông báo thất bại");
+        if (target) setItems((prev) => [target, ...prev]);
+      }
+    },
+    [items, toast],
+  );
+
   return (
     <div className="max-w-2xl mx-auto space-y-4">
       <div className="flex items-center justify-between">
@@ -92,7 +110,7 @@ export function NotificationsClient() {
             {items.map((n) => {
               const href = hrefFor(n);
               const inner = (
-                <div className="flex items-start gap-3 px-4 py-3">
+                <div className="flex items-start gap-3 px-4 py-3 bg-white">
                   <div className={`mt-1.5 w-2.5 h-2.5 rounded-full flex-shrink-0 ${n.readAt ? "bg-gray-200" : "bg-primary"}`} />
                   <div className="flex-1 min-w-0">
                     <div className={`text-sm leading-snug ${n.readAt ? "text-gray-600" : "text-gray-900 font-medium"}`}>
@@ -103,15 +121,23 @@ export function NotificationsClient() {
                   {href && <span className="text-gray-300 mt-2">›</span>}
                 </div>
               );
+              const wrapped = href ? (
+                <Link href={href} className="block hover:bg-rose-50">
+                  {inner}
+                </Link>
+              ) : (
+                <div className="block">{inner}</div>
+              );
               return (
                 <li key={n.id}>
-                  {href ? (
-                    <Link href={href} className="block hover:bg-rose-50">
-                      {inner}
-                    </Link>
-                  ) : (
-                    <div className="block">{inner}</div>
-                  )}
+                  <SwipeActions
+                    actionWidth={72}
+                    rightActions={[
+                      { label: "Xoá", icon: "🗑", color: "danger", onClick: () => void deleteOne(n.id) },
+                    ]}
+                  >
+                    {wrapped}
+                  </SwipeActions>
                 </li>
               );
             })}

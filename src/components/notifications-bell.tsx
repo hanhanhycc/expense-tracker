@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useClickOutside } from "@/lib/use-click-outside";
+import { ensurePushSubscription } from "@/lib/push-client";
+import { SwipeActions } from "@/components/swipe-actions";
 
 type NotificationItem = {
   id: string;
@@ -22,10 +24,6 @@ type FetchResponse = {
 
 const POLL_MS = 60_000;
 
-/**
- * Set/clear app icon badge khi PWA đã add to home screen.
- * Browser không support hoặc app mở trong tab thường → noop.
- */
 type BadgeNavigator = Navigator & {
   setAppBadge?: (n?: number) => Promise<void>;
   clearAppBadge?: () => Promise<void>;
@@ -41,7 +39,7 @@ function updateAppBadge(count: number) {
       void nav.clearAppBadge().catch(() => {});
     }
   } catch {
-    /* ignore — browser không support */
+    /* ignore */
   }
 }
 
@@ -63,6 +61,10 @@ export function NotificationsBell() {
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [pushPermission, setPushPermission] = useState<NotificationPermission | "unsupported">(
+    typeof window !== "undefined" && "Notification" in window ? Notification.permission : "unsupported",
+  );
+  const [enabling, setEnabling] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   useClickOutside({ enabled: open, onClose: () => setOpen(false), ref });
@@ -80,7 +82,15 @@ export function NotificationsBell() {
     }
   }, []);
 
-  // Poll mỗi 60s + refresh khi tab quay lại visible
+  // Mount: nếu permission đã granted thì refresh subscription (idempotent, silent).
+  useEffect(() => {
+    if (typeof window === "undefined" || !("Notification" in window)) return;
+    if (Notification.permission === "granted") {
+      void ensurePushSubscription();
+    }
+  }, []);
+
+  // Poll mỗi 60s + refresh khi tab visible
   useEffect(() => {
     const ctrl = new AbortController();
     void fetchData(ctrl.signal);
@@ -96,7 +106,6 @@ export function NotificationsBell() {
     };
   }, [fetchData]);
 
-  // Khi mở dropdown thì refresh ngay
   useEffect(() => {
     if (open) void fetchData();
   }, [open, fetchData]);
@@ -124,7 +133,40 @@ export function NotificationsBell() {
     try {
       await fetch(`/api/notifications/${id}`, { method: "PATCH" });
     } catch {
-      /* ignore — đã optimistic update */
+      /* ignore */
+    }
+  }, []);
+
+  const deleteOne = useCallback(async (id: string) => {
+    // Optimistic
+    const target = items.find((n) => n.id === id);
+    setItems((prev) => prev.filter((n) => n.id !== id));
+    if (target && !target.readAt) {
+      setUnreadCount((c) => {
+        const next = Math.max(0, c - 1);
+        updateAppBadge(next);
+        return next;
+      });
+    }
+    try {
+      await fetch(`/api/notifications/${id}`, { method: "DELETE" });
+    } catch {
+      // Rollback nếu lỗi
+      if (target) setItems((prev) => [target, ...prev]);
+    }
+  }, [items]);
+
+  const enablePush = useCallback(async () => {
+    setEnabling(true);
+    const result = await ensurePushSubscription();
+    setEnabling(false);
+    if (typeof window !== "undefined" && "Notification" in window) {
+      setPushPermission(Notification.permission);
+    }
+    if (result.status === "no-vapid") {
+      // Server admin chưa setup VAPID — không spam user.
+      // eslint-disable-next-line no-console
+      console.warn("[push] VAPID keys chưa được cấu hình.");
     }
   }, []);
 
@@ -132,17 +174,17 @@ export function NotificationsBell() {
     <div className="relative" ref={ref}>
       <button
         onClick={() => setOpen((o) => !o)}
-        className="relative w-12 h-12 rounded-full hover:bg-rose-50 flex items-center justify-center text-gray-700 hover:text-primary-700 transition touch-manipulation"
+        className="relative w-11 h-11 rounded-full hover:bg-rose-50 flex items-center justify-center text-gray-700 hover:text-primary-700 transition touch-manipulation"
         aria-label="Thông báo"
         aria-haspopup="menu"
         aria-expanded={open}
       >
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-7 h-7">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
           <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
           <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
         </svg>
         {unreadCount > 0 && (
-          <span className="absolute top-1 right-1 min-w-[20px] h-[20px] px-1.5 rounded-full bg-danger text-white text-[11px] font-bold flex items-center justify-center shadow">
+          <span className="absolute top-0.5 right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-danger text-white text-[10px] font-bold flex items-center justify-center shadow ring-2 ring-white">
             {unreadCount > 99 ? "99+" : unreadCount}
           </span>
         )}
@@ -151,7 +193,7 @@ export function NotificationsBell() {
       {open && (
         <div
           role="menu"
-          className="absolute right-0 top-11 w-80 max-w-[calc(100vw-2rem)] bg-white rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.12)] border border-gray-100 overflow-hidden"
+          className="absolute right-0 top-12 w-80 max-w-[calc(100vw-2rem)] bg-white rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.12)] border border-gray-100 overflow-hidden"
         >
           <div className="px-4 py-3 border-b flex items-center justify-between">
             <div className="font-semibold text-gray-800">Thông báo</div>
@@ -163,6 +205,22 @@ export function NotificationsBell() {
               Đánh dấu đã đọc
             </button>
           </div>
+
+          {pushPermission === "default" && (
+            <button
+              onClick={enablePush}
+              disabled={enabling}
+              className="w-full px-4 py-2.5 bg-primary/10 text-primary-700 text-sm font-medium hover:bg-primary/20 disabled:opacity-60 flex items-center justify-center gap-2 border-b"
+            >
+              <span>🔔</span>
+              <span>{enabling ? "Đang bật..." : "Bật thông báo đẩy real-time"}</span>
+            </button>
+          )}
+          {pushPermission === "denied" && (
+            <div className="px-4 py-2 bg-amber-50 text-amber-700 text-xs border-b">
+              Bạn đã tắt notification. Bật lại trong cài đặt trình duyệt nếu muốn nhận thông báo đẩy.
+            </div>
+          )}
 
           <div className="max-h-[min(420px,70vh)] overflow-y-auto">
             {items.length === 0 ? (
@@ -177,7 +235,7 @@ export function NotificationsBell() {
                       ? `/history?txId=${encodeURIComponent(n.entityId)}`
                       : null;
                   const inner = (
-                    <div className="flex items-start gap-3">
+                    <div className="flex items-start gap-3 bg-white">
                       <div className={`mt-1 w-2 h-2 rounded-full flex-shrink-0 ${n.readAt ? "bg-gray-200" : "bg-primary"}`} />
                       <div className="flex-1 min-w-0">
                         <div className={`text-sm leading-snug ${n.readAt ? "text-gray-600" : "text-gray-900 font-medium"}`}>
@@ -188,29 +246,38 @@ export function NotificationsBell() {
                     </div>
                   );
 
+                  const linkOrButton = href ? (
+                    <Link
+                      href={href}
+                      onClick={() => {
+                        if (!n.readAt) void markOneRead(n.id);
+                        setOpen(false);
+                      }}
+                      className="block px-4 py-3 hover:bg-rose-50"
+                    >
+                      {inner}
+                    </Link>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        if (!n.readAt) void markOneRead(n.id);
+                      }}
+                      className="block w-full text-left px-4 py-3 hover:bg-rose-50"
+                    >
+                      {inner}
+                    </button>
+                  );
+
                   return (
                     <li key={n.id}>
-                      {href ? (
-                        <Link
-                          href={href}
-                          onClick={() => {
-                            if (!n.readAt) void markOneRead(n.id);
-                            setOpen(false);
-                          }}
-                          className="block px-4 py-3 hover:bg-rose-50"
-                        >
-                          {inner}
-                        </Link>
-                      ) : (
-                        <button
-                          onClick={() => {
-                            if (!n.readAt) void markOneRead(n.id);
-                          }}
-                          className="block w-full text-left px-4 py-3 hover:bg-rose-50"
-                        >
-                          {inner}
-                        </button>
-                      )}
+                      <SwipeActions
+                        actionWidth={64}
+                        rightActions={[
+                          { label: "Xoá", icon: "🗑", color: "danger", onClick: () => void deleteOne(n.id) },
+                        ]}
+                      >
+                        {linkOrButton}
+                      </SwipeActions>
                     </li>
                   );
                 })}

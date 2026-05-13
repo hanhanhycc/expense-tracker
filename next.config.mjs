@@ -7,6 +7,8 @@ const withPWA = withPWAInit({
   cacheOnFrontEndNav: true,
   disable: process.env.NODE_ENV === "development",
   workboxOptions: { disableDevLogs: true },
+  // Custom worker handler push event & notification click.
+  customWorkerSrc: "worker",
 });
 
 const nextConfig = {

@@ -107,6 +107,7 @@ model FamilyMember {
   budgets             Budget[]
   notifications       Notification[]       @relation("NotifRecipient")
   actedNotifications  Notification[]       @relation("NotifActor")
+  pushSubscriptions   PushSubscription[]
 
   @@unique([userId, familyId])
   @@index([familyId])
@@ -330,5 +331,25 @@ model Notification {
   @@index([recipientId, createdAt])
   @@index([familyId])
   @@map("notifications")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Push Subscriptions — Web Push API per device/browser
+// ─────────────────────────────────────────────────────────────
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  memberId  String
+  endpoint  String   @unique
+  p256dh    String   // public key của browser
+  auth      String   // auth secret
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  member FamilyMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([memberId])
+  @@map("push_subscriptions")
 }
 

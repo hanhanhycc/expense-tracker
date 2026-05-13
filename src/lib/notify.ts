@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { formatVND } from "@/lib/money";
+import { countUnread, sendWebPushToMember } from "@/lib/web-push";
 import type { Prisma } from "@prisma/client";
 
 export type NotificationType = "TRANSACTION_SHARED" | "TRANSACTION_SHARE_UPDATED";
@@ -69,4 +70,22 @@ export async function notifyShareRecipients(args: {
     // eslint-disable-next-line no-console
     console.error("[notify] tạo notification thất bại:", e);
   }
+
+  // Web Push real-time tới home screen (chạy song song, không block, không throw).
+  const pushTitle = `${actor.name} ${verb} giao dịch`;
+  await Promise.all(
+    recipients.map(async (r) => {
+      const isZero = String(r.amount) === "0";
+      const sharePart = isZero ? "" : ` — phần của bạn ${formatVND(r.amount)}`;
+      const body = `${tx.note ? `"${tx.note}"` : "Giao dịch mới"}${sharePart}`;
+      const unread = await countUnread(r.memberId).catch(() => undefined);
+      await sendWebPushToMember(r.memberId, {
+        title: pushTitle,
+        body,
+        url: `/history?txId=${encodeURIComponent(tx.id)}`,
+        unreadCount: unread,
+        tag: `tx-${tx.id}`,
+      });
+    }),
+  );
 }
