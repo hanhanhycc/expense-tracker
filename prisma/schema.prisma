@@ -151,15 +151,21 @@ model Category {
   icon      String?
   color     String?
   isDefault Boolean      @default(false)
+  isEnabled Boolean      @default(true)   // disable để ẩn khỏi form mà không xoá data
+  parentId  String?                       // nullable — null = root/group; có giá trị = subcategory
+  sortOrder Int          @default(0)
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
 
   family       Family        @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  parent       Category?     @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children     Category[]    @relation("CategoryHierarchy")
   transactions Transaction[]
   budgets      Budget[]
 
   @@index([familyId])
   @@index([familyId, kind])
+  @@index([familyId, parentId])
   @@map("categories")
 }
 

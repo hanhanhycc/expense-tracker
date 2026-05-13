@@ -56,6 +56,7 @@
 - PWA: manifest + SW cache shell.
 - **Notifications (đã thêm sau MVP gốc)**: in-app bell + page `/notifications` + Web Push real-time tới home screen (VAPID). Trigger khi share/sửa share giao dịch.
 - **Accounts (đã thêm sau MVP gốc — Mức A label-only)**: bảng `accounts` (Cash/Bank/Card/E-wallet), CRUD ở `/settings/accounts`, Transaction.accountId nullable, hiển thị + filter ở history. **KHÔNG** track balance hay transfer.
+- **Categories hierarchical (đã thêm sau MVP gốc)**: 2 cấp parent → children. `Category.parentId` + `isEnabled` + `sortOrder`. Disable thay vì xoá khi đang có giao dịch ref. Transaction form: 2-step expand (click nhóm cha → hiện con).
 
 ---
 
@@ -300,7 +301,31 @@ test(split): thêm test cho splitEqual với phần dư
 
 ---
 
-## 🏦 18. Accounts (Mức A — label-only)
+## 🏷 18. Categories hierarchical (2 cấp)
+
+### 19.1 Quy tắc
+- `Category.parentId`: null = nhóm cha (root); có giá trị = danh mục con (leaf).
+- **CHỈ 2 cấp**: con không thể có con (API reject 400).
+- `isEnabled`: false = ẩn khỏi transaction form, **nhưng** giao dịch cũ ref vẫn hoạt động bình thường.
+- `sortOrder`: thứ tự hiển thị trong nhóm.
+- Default cấu trúc lưu ở [`src/lib/category-defaults.ts`](src/lib/category-defaults.ts) — DÙNG `seedDefaultCategoriesForFamily(prisma, familyId)` (idempotent).
+
+### 19.2 Xoá vs Disable
+- **Xoá**: chỉ được khi không có giao dịch + không có con. API 400 nếu vi phạm.
+- **Disable**: luôn an toàn. Hidden khỏi form mới nhưng giao dịch cũ vẫn ref.
+- UX: gợi ý user disable thay vì xoá nếu có giao dịch.
+
+### 19.3 Transaction form UX
+- **2-step expand**: click group → hiện chip danh mục con. Click con → submit categoryId của con.
+- Nếu group không có con (`isLeafGroup`), click chọn luôn (vd: "Khác" không cần phân loại sâu).
+- Selected hiển thị banner trên cùng: `[icon] [name] · [parent name]`.
+
+### 19.4 Khi đổi kind (Chi/Thu)
+Tự clear `categoryId` nếu category cũ thuộc kind khác.
+
+---
+
+## 🏦 19. Accounts (Mức A — label-only)
 
 ### 18.1 Scope
 - Bảng `accounts`: id, familyId, name, type (CASH/BANK/CARD/EWALLET/OTHER), icon, color, isDefault, soft delete.

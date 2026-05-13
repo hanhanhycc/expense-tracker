@@ -8,6 +8,8 @@ const schema = z.object({
   kind: z.enum(["INCOME", "EXPENSE"]),
   icon: z.string().max(8).optional().nullable(),
   color: z.string().max(20).optional().nullable(),
+  parentId: z.string().optional().nullable(),
+  isEnabled: z.boolean().optional(),
 });
 
 export async function GET() {
@@ -15,7 +17,7 @@ export async function GET() {
   if (!session?.user?.familyId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const items = await prisma.category.findMany({
     where: { familyId: session.user.familyId },
-    orderBy: [{ kind: "asc" }, { name: "asc" }],
+    orderBy: [{ kind: "asc" }, { sortOrder: "asc" }, { name: "asc" }],
   });
   return NextResponse.json({ items });
 }
@@ -28,6 +30,16 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
   const parsed = schema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: "Dữ liệu không hợp lệ" }, { status: 400 });
+
+  // Nếu có parentId: verify cùng family, cùng kind, parent phải là root (chỉ cho 2 cấp).
+  if (parsed.data.parentId) {
+    const parent = await prisma.category.findFirst({
+      where: { id: parsed.data.parentId, familyId: session.user.familyId, kind: parsed.data.kind },
+      select: { id: true, parentId: true },
+    });
+    if (!parent) return NextResponse.json({ error: "Nhóm cha không hợp lệ" }, { status: 400 });
+    if (parent.parentId) return NextResponse.json({ error: "Chỉ cho phép 2 cấp danh mục" }, { status: 400 });
+  }
 
   const created = await prisma.category.create({
     data: { ...parsed.data, familyId: session.user.familyId },

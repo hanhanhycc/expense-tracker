@@ -1,28 +1,8 @@
-import { PrismaClient, AccountType, CategoryKind, Role, TxType, Visibility, SplitType, GoalStatus } from "@prisma/client";
+import { PrismaClient, AccountType, Role, TxType, Visibility, SplitType, GoalStatus } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { seedDefaultCategoriesForFamily } from "../src/lib/category-defaults";
 
 const prisma = new PrismaClient();
-
-const DEFAULT_EXPENSE_CATEGORIES = [
-  { name: "Ăn uống", icon: "🍜", color: "#f59e0b" },
-  { name: "Nhà cửa", icon: "🏠", color: "#0ea5e9" },
-  { name: "Đi lại", icon: "🚗", color: "#6366f1" },
-  { name: "Con cái", icon: "👶", color: "#ec4899" },
-  { name: "Sức khoẻ", icon: "💊", color: "#10b981" },
-  { name: "Mua sắm", icon: "🛍️", color: "#8b5cf6" },
-  { name: "Giải trí", icon: "🎬", color: "#f43f5e" },
-  { name: "Gia đình / Họ hàng", icon: "👪", color: "#14b8a6" },
-  { name: "Học tập", icon: "📚", color: "#3b82f6" },
-  { name: "Khác", icon: "📦", color: "#6b7280" },
-];
-
-const DEFAULT_INCOME_CATEGORIES = [
-  { name: "Lương", icon: "💼", color: "#16a34a" },
-  { name: "Thưởng", icon: "🎁", color: "#22c55e" },
-  { name: "Kinh doanh", icon: "🏪", color: "#0891b2" },
-  { name: "Hoàn tiền", icon: "↩️", color: "#84cc16" },
-  { name: "Khác", icon: "💰", color: "#6b7280" },
-];
 
 const DEFAULT_ACCOUNTS = [
   { name: "Tiền mặt", type: AccountType.CASH, icon: "💵", color: "#10b981", isDefault: true },
@@ -42,13 +22,8 @@ async function main() {
     data: { name: "Gia đình Demo" },
   });
 
-  // Seed default categories
-  await prisma.category.createMany({
-    data: [
-      ...DEFAULT_EXPENSE_CATEGORIES.map((c) => ({ ...c, kind: CategoryKind.EXPENSE, isDefault: true, familyId: family.id })),
-      ...DEFAULT_INCOME_CATEGORIES.map((c) => ({ ...c, kind: CategoryKind.INCOME, isDefault: true, familyId: family.id })),
-    ],
-  });
+  // Seed default categories (hierarchical)
+  await seedDefaultCategoriesForFamily(prisma, family.id);
 
   // Seed default accounts
   await prisma.account.createMany({
@@ -70,31 +45,35 @@ async function main() {
     data: { userId: member.id, familyId: family.id, role: Role.MEMBER },
   });
 
-  // Lấy categories
-  const cats = await prisma.category.findMany({ where: { familyId: family.id } });
-  const catByName = (n: string) => cats.find((c) => c.name === n)!;
+  // Lấy categories (chỉ leaf — node có parentId hoặc node không có children)
+  const cats = await prisma.category.findMany({
+    where: { familyId: family.id },
+    include: { children: { select: { id: true } } },
+  });
+  const catByName = (n: string) => cats.find((c) => c.name === n && c.children.length === 0)!;
 
   // Seed transactions mẫu (30 giao dịch trong tháng hiện tại)
   const today = new Date();
   const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
 
+  // Dùng tên LEAF category của structure mới
   const txs = [
     // Thu
     { d: 1, amt: 25_000_000, type: TxType.INCOME, cat: "Lương", note: "Lương tháng", paid: ownerMember.id, vis: Visibility.PERSONAL, by: ownerMember.id },
     { d: 5, amt: 18_000_000, type: TxType.INCOME, cat: "Lương", note: "Lương tháng", paid: memberMember.id, vis: Visibility.PERSONAL, by: memberMember.id },
     // Chi cá nhân
-    { d: 2, amt: 150_000, type: TxType.EXPENSE, cat: "Ăn uống", note: "Cà phê sáng", paid: ownerMember.id, vis: Visibility.PERSONAL, by: ownerMember.id },
-    { d: 3, amt: 250_000, type: TxType.EXPENSE, cat: "Mua sắm", note: "Áo thun", paid: memberMember.id, vis: Visibility.PERSONAL, by: memberMember.id },
+    { d: 2, amt: 150_000, type: TxType.EXPENSE, cat: "Cafe", note: "Cà phê sáng", paid: ownerMember.id, vis: Visibility.PERSONAL, by: ownerMember.id },
+    { d: 3, amt: 250_000, type: TxType.EXPENSE, cat: "Quần áo", note: "Áo thun", paid: memberMember.id, vis: Visibility.PERSONAL, by: memberMember.id },
     // Chi chung
-    { d: 4, amt: 1_200_000, type: TxType.EXPENSE, cat: "Ăn uống", note: "Đi ăn nhà hàng", paid: ownerMember.id, vis: Visibility.SHARED, by: ownerMember.id, share: [ownerMember.id, memberMember.id] },
-    { d: 6, amt: 5_000_000, type: TxType.EXPENSE, cat: "Nhà cửa", note: "Tiền điện nước", paid: memberMember.id, vis: Visibility.SHARED, by: memberMember.id, share: [ownerMember.id, memberMember.id] },
-    { d: 7, amt: 800_000, type: TxType.EXPENSE, cat: "Con cái", note: "Sách cho bé", paid: ownerMember.id, vis: Visibility.SHARED, by: ownerMember.id, share: [ownerMember.id, memberMember.id] },
-    { d: 8, amt: 350_000, type: TxType.EXPENSE, cat: "Đi lại", note: "Đổ xăng", paid: ownerMember.id, vis: Visibility.PERSONAL, by: ownerMember.id },
-    { d: 9, amt: 2_500_000, type: TxType.EXPENSE, cat: "Mua sắm", note: "Đồ siêu thị tuần", paid: memberMember.id, vis: Visibility.SHARED, by: memberMember.id, share: [ownerMember.id, memberMember.id] },
-    { d: 10, amt: 450_000, type: TxType.EXPENSE, cat: "Giải trí", note: "Xem phim", paid: ownerMember.id, vis: Visibility.SHARED, by: ownerMember.id, share: [ownerMember.id, memberMember.id] },
-    { d: 12, amt: 200_000, type: TxType.EXPENSE, cat: "Sức khoẻ", note: "Thuốc cảm", paid: memberMember.id, vis: Visibility.PERSONAL, by: memberMember.id },
-    { d: 14, amt: 3_000_000, type: TxType.EXPENSE, cat: "Học tập", note: "Học phí bé", paid: ownerMember.id, vis: Visibility.SHARED, by: ownerMember.id, share: [ownerMember.id, memberMember.id] },
-    { d: 15, amt: 1_500_000, type: TxType.EXPENSE, cat: "Gia đình / Họ hàng", note: "Quà mừng cưới", paid: memberMember.id, vis: Visibility.SHARED, by: memberMember.id, share: [ownerMember.id, memberMember.id] },
+    { d: 4, amt: 1_200_000, type: TxType.EXPENSE, cat: "Ăn tiệm", note: "Đi ăn nhà hàng", paid: ownerMember.id, vis: Visibility.SHARED, by: ownerMember.id, share: [ownerMember.id, memberMember.id] },
+    { d: 6, amt: 5_000_000, type: TxType.EXPENSE, cat: "Điện", note: "Tiền điện tháng", paid: memberMember.id, vis: Visibility.SHARED, by: memberMember.id, share: [ownerMember.id, memberMember.id] },
+    { d: 7, amt: 800_000, type: TxType.EXPENSE, cat: "Đồ chơi", note: "Sách cho bé", paid: ownerMember.id, vis: Visibility.SHARED, by: ownerMember.id, share: [ownerMember.id, memberMember.id] },
+    { d: 8, amt: 350_000, type: TxType.EXPENSE, cat: "Xăng xe", note: "Đổ xăng", paid: ownerMember.id, vis: Visibility.PERSONAL, by: ownerMember.id },
+    { d: 9, amt: 2_500_000, type: TxType.EXPENSE, cat: "Đi chợ/siêu thị", note: "Đồ siêu thị tuần", paid: memberMember.id, vis: Visibility.SHARED, by: memberMember.id, share: [ownerMember.id, memberMember.id] },
+    { d: 10, amt: 450_000, type: TxType.EXPENSE, cat: "Phim ảnh ca nhạc", note: "Xem phim", paid: ownerMember.id, vis: Visibility.SHARED, by: ownerMember.id, share: [ownerMember.id, memberMember.id] },
+    { d: 12, amt: 200_000, type: TxType.EXPENSE, cat: "Thuốc men", note: "Thuốc cảm", paid: memberMember.id, vis: Visibility.PERSONAL, by: memberMember.id },
+    { d: 14, amt: 3_000_000, type: TxType.EXPENSE, cat: "Học phí", note: "Học phí bé", paid: ownerMember.id, vis: Visibility.SHARED, by: ownerMember.id, share: [ownerMember.id, memberMember.id] },
+    { d: 15, amt: 1_500_000, type: TxType.EXPENSE, cat: "Biếu tặng", note: "Quà mừng cưới", paid: memberMember.id, vis: Visibility.SHARED, by: memberMember.id, share: [ownerMember.id, memberMember.id] },
   ];
 
   for (const t of txs) {
@@ -165,12 +144,7 @@ async function main() {
   const existing = await prisma.user.findUnique({ where: { email: realEmail } });
   if (!existing) {
     const realFamily = await prisma.family.create({ data: { name: "Gia đình Hân" } });
-    await prisma.category.createMany({
-      data: [
-        ...DEFAULT_EXPENSE_CATEGORIES.map((c) => ({ ...c, kind: CategoryKind.EXPENSE, isDefault: true, familyId: realFamily.id })),
-        ...DEFAULT_INCOME_CATEGORIES.map((c) => ({ ...c, kind: CategoryKind.INCOME, isDefault: true, familyId: realFamily.id })),
-      ],
-    });
+    await seedDefaultCategoriesForFamily(prisma, realFamily.id);
     await prisma.account.createMany({
       data: DEFAULT_ACCOUNTS.map((a) => ({ ...a, familyId: realFamily.id })),
     });

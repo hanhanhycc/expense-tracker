@@ -20,7 +20,16 @@ function waitMs(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-type Category = { id: string; name: string; kind: "INCOME" | "EXPENSE"; icon: string | null; color: string | null };
+type Category = {
+  id: string;
+  name: string;
+  kind: "INCOME" | "EXPENSE";
+  icon: string | null;
+  color: string | null;
+  parentId: string | null;
+  isEnabled: boolean;
+  sortOrder: number;
+};
 type Member = { id: string; user: { id: string; name: string }; role: string };
 type Account = { id: string; name: string; type: string; icon: string | null; isDefault: boolean };
 
@@ -93,6 +102,13 @@ export function TransactionForm({ initial, currentMemberId }: { initial?: Transa
     setRemoveExistingReceipt(true);
   }
 
+  // Khi đổi Chi/Thu mà categoryId hiện tại không thuộc kind mới → clear
+  useEffect(() => {
+    if (!categoryId) return;
+    const cur = categories.find((c) => c.id === categoryId);
+    if (cur && cur.kind !== type) setCategoryId("");
+  }, [type, categoryId, categories]);
+
   useEffect(() => {
     fetch("/api/categories").then((r) => r.json()).then((d) => setCategories(d.items || []));
     fetch("/api/members").then((r) => r.json()).then((d) => setMembers(d.items || []));
@@ -108,7 +124,17 @@ export function TransactionForm({ initial, currentMemberId }: { initial?: Transa
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const filteredCats = categories.filter((c) => c.kind === type);
+  // Lọc theo type + isEnabled
+  const filteredCats = categories.filter((c) => c.kind === type && c.isEnabled);
+  const rootGroups = filteredCats
+    .filter((c) => !c.parentId)
+    .sort((a, b) => a.sortOrder - b.sortOrder);
+  const childrenOf = (pid: string) =>
+    filteredCats.filter((c) => c.parentId === pid).sort((a, b) => a.sortOrder - b.sortOrder);
+  // Map id → cat để render selected
+  const catById = new Map(filteredCats.map((c) => [c.id, c]));
+  const selectedCat = categoryId ? catById.get(categoryId) : null;
+  const selectedParent = selectedCat?.parentId ? catById.get(selectedCat.parentId) : null;
 
   function toggleShared(mid: string) {
     setSharedMemberIds((cur) => (cur.includes(mid) ? cur.filter((x) => x !== mid) : [...cur, mid]));
@@ -207,22 +233,15 @@ export function TransactionForm({ initial, currentMemberId }: { initial?: Transa
         />
       </div>
 
-      <div>
-        <label className="label">Danh mục</label>
-        <div className="flex flex-wrap gap-2">
-          {filteredCats.map((c) => (
-            <button
-              key={c.id}
-              type="button"
-              onClick={() => setCategoryId(c.id)}
-              className={`chip border ${categoryId === c.id ? "bg-primary text-white border-primary" : "bg-white text-gray-700"}`}
-            >
-              <span className="mr-1">{c.icon}</span>{c.name}
-            </button>
-          ))}
-          {filteredCats.length === 0 && <p className="text-sm text-gray-500">Chưa có danh mục.</p>}
-        </div>
-      </div>
+      <CategoryPicker
+        groups={rootGroups}
+        childrenOf={childrenOf}
+        value={categoryId}
+        selectedCat={selectedCat ?? null}
+        selectedParent={selectedParent ?? null}
+        onChange={setCategoryId}
+      />
+
 
       <div className="grid grid-cols-2 gap-3">
         <div>
@@ -355,5 +374,114 @@ export function TransactionForm({ initial, currentMemberId }: { initial?: Transa
         {loading ? "Đang lưu..." : initial?.id ? "Cập nhật" : "Lưu giao dịch"}
       </button>
     </form>
+  );
+}
+
+function CategoryPicker({
+  groups,
+  childrenOf,
+  value,
+  selectedCat,
+  selectedParent,
+  onChange,
+}: {
+  groups: Category[];
+  childrenOf: (parentId: string) => Category[];
+  value: string;
+  selectedCat: Category | null;
+  selectedParent: Category | null;
+  onChange: (id: string) => void;
+}) {
+  const [expandedGroupId, setExpandedGroupId] = useState<string | null>(null);
+
+  // Khi value đổi (vd: edit transaction), auto-expand group chứa selected child
+  useEffect(() => {
+    if (selectedCat?.parentId) setExpandedGroupId(selectedCat.parentId);
+  }, [selectedCat?.parentId]);
+
+  if (groups.length === 0) {
+    return (
+      <div>
+        <label className="label">Danh mục</label>
+        <p className="text-sm text-gray-500">Chưa có danh mục. Vào Cài đặt → Danh mục → Áp dụng cấu trúc mặc định.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1.5">
+        <label className="label !mb-0">Danh mục</label>
+        {selectedCat && (
+          <button
+            type="button"
+            onClick={() => { onChange(""); setExpandedGroupId(null); }}
+            className="text-[11px] text-gray-400 hover:text-gray-600"
+          >
+            Bỏ chọn
+          </button>
+        )}
+      </div>
+
+      {selectedCat && (
+        <div className="mb-2 px-3 py-2 rounded-xl bg-primary/10 border border-primary/30 text-sm flex items-center gap-2">
+          <span className="text-lg">{selectedCat.icon || "📦"}</span>
+          <span className="font-medium">{selectedCat.name}</span>
+          {selectedParent && <span className="text-xs text-gray-500">· {selectedParent.name}</span>}
+        </div>
+      )}
+
+      <div className="flex flex-wrap gap-2">
+        {groups.map((g) => {
+          const kids = childrenOf(g.id);
+          const isExpanded = expandedGroupId === g.id;
+          const isSelectedHere = selectedCat?.id === g.id || selectedCat?.parentId === g.id;
+          // Nếu group không có children → nó vừa là group vừa là leaf, click chọn luôn
+          const isLeafGroup = kids.length === 0;
+
+          return (
+            <button
+              key={g.id}
+              type="button"
+              onClick={() => {
+                if (isLeafGroup) {
+                  onChange(g.id);
+                } else {
+                  setExpandedGroupId(isExpanded ? null : g.id);
+                }
+              }}
+              className={`chip border transition ${
+                (isLeafGroup && value === g.id) || isSelectedHere
+                  ? "bg-primary text-white border-primary"
+                  : "bg-white text-gray-700"
+              }`}
+            >
+              <span className="mr-1">{g.icon || "📦"}</span>
+              {g.name}
+              {!isLeafGroup && <span className="ml-1 text-xs opacity-70">{isExpanded ? "▾" : "▸"}</span>}
+            </button>
+          );
+        })}
+      </div>
+
+      {expandedGroupId && (
+        <div className="mt-3 pl-3 border-l-2 border-primary/30">
+          <p className="text-[11px] text-gray-500 mb-1.5">Chọn danh mục con:</p>
+          <div className="flex flex-wrap gap-2">
+            {childrenOf(expandedGroupId).map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => onChange(c.id)}
+                className={`chip border ${value === c.id ? "bg-primary text-white border-primary" : "bg-white text-gray-700"}`}
+              >
+                <span className="mr-1">{c.icon || "📦"}</span>
+                {c.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
