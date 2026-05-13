@@ -9,6 +9,7 @@ const schema = z.object({
   type: z.nativeEnum(AccountType),
   icon: z.string().max(8).optional().nullable(),
   color: z.string().max(20).optional().nullable(),
+  bankCode: z.string().max(40).optional().nullable(),
 });
 
 /**

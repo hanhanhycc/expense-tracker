@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { BANK_CATALOG, searchBankCatalog, type BankCatalogItem } from "@/lib/bank-catalog";
-import { findBrandBadge } from "@/lib/brand-badges";
 import { AccountBadge } from "@/components/account-badge";
 
 const TYPE_GROUPS: { type: BankCatalogItem["type"]; label: string }[] = [
@@ -68,26 +67,21 @@ export function BankPicker({
                 {g.label}
               </p>
               <ul>
-                {g.items.map((b) => {
-                  const badge = findBrandBadge(b.name);
-                  return (
-                    <li key={b.name}>
-                      <button
-                        type="button"
-                        onClick={() => onPick(b)}
-                        className="w-full flex items-center gap-3 px-2 py-2.5 rounded-xl hover:bg-rose-50 transition text-left"
-                      >
-                        <AccountBadge name={b.name} size={36} />
-                        <span className="flex-1 min-w-0">
-                          <span className="block font-medium truncate">{b.name}</span>
-                          {badge && (
-                            <span className="block text-xs text-gray-500">{g.label}</span>
-                          )}
-                        </span>
-                      </button>
-                    </li>
-                  );
-                })}
+                {g.items.map((b) => (
+                  <li key={b.name}>
+                    <button
+                      type="button"
+                      onClick={() => onPick(b)}
+                      className="w-full flex items-center gap-3 px-2 py-2.5 rounded-xl hover:bg-rose-50 transition text-left"
+                    >
+                      <AccountBadge name={b.name} bankCode={b.bankCode} size={36} />
+                      <span className="flex-1 min-w-0">
+                        <span className="block font-medium truncate">{b.name}</span>
+                        <span className="block text-xs text-gray-500">{g.label}</span>
+                      </span>
+                    </button>
+                  </li>
+                ))}
               </ul>
             </div>
           ))}

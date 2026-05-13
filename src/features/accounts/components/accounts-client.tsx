@@ -14,6 +14,7 @@ export type Account = {
   type: AccountType;
   icon: string | null;
   color: string | null;
+  bankCode: string | null;
   isDefault: boolean;
 };
 
@@ -220,6 +221,7 @@ export function AccountsClient({ canManage }: { canManage: boolean }) {
                 type: item.type,
                 icon: suggested?.icon ?? TYPE_DEFAULT_ICON[item.type],
                 color: suggested?.color ?? null,
+                bankCode: item.bankCode ?? null,
               }),
             });
             setPickerOpen(false);
@@ -258,7 +260,7 @@ function Section({
         {items.map((a) => (
           <li key={a.id} className="py-2 flex items-center justify-between gap-2">
             <span className="flex items-center gap-2 min-w-0 flex-1">
-              <AccountBadge name={a.name} icon={a.icon} color={a.color} size={36} />
+              <AccountBadge name={a.name} icon={a.icon} color={a.color} bankCode={a.bankCode} size={36} />
               <span className="truncate">{a.name}</span>
               {a.isDefault && <span className="chip bg-primary/10 text-primary text-[10px]">mặc định</span>}
             </span>
