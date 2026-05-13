@@ -54,6 +54,7 @@
 - Reports: 5 biểu đồ liệt kê trong README.
 - Export CSV: transactions + saving contributions.
 - PWA: manifest + SW cache shell.
+- **Notifications (đã thêm sau MVP gốc)**: in-app bell + page `/notifications` + Web Push real-time tới home screen (VAPID). Trigger khi share/sửa share giao dịch.
 
 ---
 
@@ -70,8 +71,9 @@ Nếu user yêu cầu các thứ dưới đây — **cảnh báo + hỏi xác nh
 - ❌ Recurring transactions (để v0.2).
 - ❌ Kế toán doanh nghiệp / hoá đơn VAT.
 - ❌ OCR hoá đơn / AI gợi ý.
-- ❌ Notification push.
 - ❌ Dark mode (để v0.2 nếu rảnh).
+
+> 📝 *Notification push **đã được thêm** sau MVP gốc — không còn trong danh sách cấm. Xem mục 17.*
 
 > **Mantra**: *"App này KHÔNG phải MoneyLover/YNAB. Nó là sổ thu chi gia đình đơn giản."*
 
@@ -133,8 +135,11 @@ src/features/transactions/
 2. Tính toán: `decimal.js` → `new Decimal(a).plus(b)`. **CẤM** `+ - * /` của JS number cho tiền.
 3. Hiển thị: `Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 })`.
 4. Input: nhập số nguyên VND, format khi blur, parse khi focus.
-5. Split equal: chia đều, **phần dư cộng vào người đầu tiên** (không tạo số lẻ).
-   - VD: 1.000.001 ₫ chia 3 → `333.335 / 333.333 / 333.333`.
+5. **Split equal (CỰC quan trọng — đừng làm sai lại)**: người TRẢ cũng tham gia chia. Bảng `transaction_shares` chỉ lưu phần của **non-payer**, payer giữ phần dư (residual model).
+   - Helper: `splitEqualForPayer(amount, payerId, sharedIds)` ở [src/lib/money.ts](src/lib/money.ts). Không tự `splitEqual(amount, sharedIds.length)` — sai logic, payer bị bỏ qua.
+   - VD: A trả 2.000.000 share đều với B → shares = `[{B: 1.000.000}]`, A residual = 1.000.000.
+   - Phần dư rơi vào payer (chứa ở index 0 của `splitEqual`). VD: 1.000.001 A trả share B,C → `[{B: 333.333}, {C: 333.333}]`, A residual = 333.335.
+   - Khi tính phần của member trong giao dịch SHARED (vd dashboard/report): nếu member là payer và không có share row riêng, lấy `amount - sum(shares)`. Xem `monthSummary.memberPart` trong [service.ts](src/features/transactions/server/service.ts).
 6. Split custom: tổng các phần phải = `amount`. Validate ở server.
 
 ---
@@ -263,6 +268,32 @@ test(split): thêm test cho splitEqual với phần dư
 - **Cảnh báo** lý do + hậu quả.
 - **Hỏi xác nhận**: "Bạn vẫn muốn làm vậy chứ?"
 - Nếu xác nhận → làm + đề xuất update CLAUDE.md.
+
+---
+
+## 🔔 17. Notifications — convention
+
+### 17.1 Stack
+- **In-app**: bảng `notifications` (xem `prisma/schema.prisma`), API `/api/notifications`, component `<NotificationsBell />` ở top-bar + trang `/notifications`.
+- **Web Push** (real-time tới home screen): VAPID + `web-push` npm. Service worker custom ở [worker/index.ts](worker/index.ts). Setup keys: `pnpm vapid:gen` → copy vào `.env` (`NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`).
+- **Graceful degrade**: nếu thiếu VAPID env → in-app vẫn chạy, chỉ tắt web push.
+
+### 17.2 Quy tắc khi tạo notification
+- Trigger ở **service layer**, không ở API route — giữ logic close với business operation.
+- Dùng helper [`notifyShareRecipients()`](src/lib/notify.ts) — đã xử lý in-app row + web push fan-out + skip actor (người tạo).
+- **Không bao giờ throw** từ notification flow — luôn try/catch nuốt lỗi và log. Notification fail không được phá flow chính (vd: tạo giao dịch vẫn phải thành công nếu push fail).
+- Khi sửa giao dịch share: chỉ notify member **mới** hoặc share **đổi số tiền** (so old vs new), không notify lại member không thay đổi.
+
+### 17.3 Khi nào thêm loại notification mới
+1. Thêm `NotificationType` literal trong `notify.ts`.
+2. Hook vào service tương ứng (vd: savings, members).
+3. Cập nhật `entity` field (vd: `"saving_goal"`) + deep-link tương ứng trong [`notifications-bell.tsx`](src/components/notifications-bell.tsx) và `notifications-client.tsx`.
+4. **Đừng** tạo bảng notification riêng cho từng loại — dùng chung 1 bảng với `type` + `metadata` JSON.
+
+### 17.4 Push permission UX
+- **Không spam** request permission lúc mở app. Chỉ hỏi khi user click button "Bật thông báo đẩy" trong bell dropdown.
+- Nếu `Notification.permission === "granted"` rồi → silent refresh subscription mỗi lần mount (idempotent).
+- Nếu `denied` → hiển thị hint nhỏ trong dropdown, **không** prompt lại.
 
 ---
 
