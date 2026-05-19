@@ -47,18 +47,28 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <div className="card">
+    <div className="card-strong">
       <div className="flex flex-col items-center mb-6">
-        <img src="/logo.svg" alt="Saving Money" className="h-24 w-24 mb-3 rounded-3xl shadow-[0_12px_30px_rgba(231,72,128,0.25)]" />
-        <h1 className="text-3xl font-extrabold tracking-tight">Save!</h1>
-        <p className="text-gray-500 text-sm mt-0.5">your money — đăng nhập để tiếp tục</p>
+        <img
+          src="/logo.svg"
+          alt="Saving Money"
+          className="h-24 w-24 mb-3 rounded-3xl"
+          style={{ boxShadow: "0 18px 40px -10px rgb(var(--accent-1-rgb) / 0.45)" }}
+        />
+        <h1
+          className="text-3xl font-extrabold tracking-tight bg-clip-text text-transparent"
+          style={{ backgroundImage: "linear-gradient(135deg, var(--accent-1), var(--accent-2))" }}
+        >
+          Save!
+        </h1>
+        <p className="text-ink-3 text-sm mt-0.5">your money — đăng nhập để tiếp tục</p>
       </div>
-      <Suspense fallback={<div className="text-sm text-gray-500">Đang tải...</div>}>
+      <Suspense fallback={<div className="text-sm text-ink-3">Đang tải...</div>}>
         <LoginForm />
       </Suspense>
-      <p className="text-sm text-center mt-5 text-gray-600">
+      <p className="text-sm text-center mt-5 text-ink-2">
         Chưa có tài khoản?{" "}
-        <Link href="/register" className="text-primary font-medium">Đăng ký</Link>
+        <Link href="/register" className="text-accent font-bold">Đăng ký</Link>
       </p>
     </div>
   );

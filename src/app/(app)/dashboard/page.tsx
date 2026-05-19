@@ -14,6 +14,7 @@ export default async function DashboardPage() {
   const from = startOfMonth();
   const to = endOfMonth();
   const monthStr = `${from.getFullYear()}-${String(from.getMonth() + 1).padStart(2, "0")}`;
+  const monthLabel = `Tháng ${from.getMonth() + 1}, ${from.getFullYear()}`;
 
   const [summary, recent, goals, budgets] = await Promise.all([
     monthSummary(familyId, session.user.memberId, from, to),
@@ -47,31 +48,33 @@ export default async function DashboardPage() {
     topPersonalBudgets(familyId, session.user.memberId, monthStr, 4),
   ]);
 
+  const balance = Number(summary.income) - Number(summary.expense);
+
   return (
-    <div className="space-y-5">
-      {/* Hero pink card with circular ring */}
-      <div className="card-pink relative overflow-hidden">
-        <div className="flex items-start justify-between">
-          <div>
-            <p className="text-xs uppercase tracking-wider text-primary-700/70 font-semibold">Tháng này</p>
-            <h1 className="text-2xl font-extrabold tracking-tight text-gray-900 mt-1">Số dư của bạn</h1>
-          </div>
-          <span className="chip bg-white text-primary-700 shadow-sm">VND</span>
+    <div className="space-y-5 animate-fade-in">
+      {/* Hero balance card — spatial glass with depth glow */}
+      <div className="card-pink">
+        <div className="flex items-center justify-between mb-3">
+          <span className="chip">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" className="mr-1.5">
+              <rect x="3" y="4" width="18" height="18" rx="3" />
+              <path d="M3 10h18M8 2v4M16 2v4" />
+            </svg>
+            {monthLabel}
+          </span>
+          <span className="chip chip-accent">● VND</span>
         </div>
 
-        <div className="mt-6 flex items-center justify-center">
-          <BalanceRing income={Number(summary.income)} expense={Number(summary.expense)} />
+        <div>
+          <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-ink-3">Số dư khả dụng</p>
+          <p className="num mt-1.5 font-extrabold leading-none text-ink-1" style={{ fontSize: "clamp(32px, 9vw, 44px)", letterSpacing: "-0.035em" }}>
+            {formatVND(String(balance))}
+          </p>
         </div>
 
-        <div className="mt-6 grid grid-cols-2 gap-3 text-sm">
-          <div className="bg-white/70 rounded-2xl px-4 py-3">
-            <p className="text-gray-500 text-xs">Thu nhập</p>
-            <p className="font-bold text-success mt-0.5">↑ {formatVND(summary.income)}</p>
-          </div>
-          <div className="bg-white/70 rounded-2xl px-4 py-3">
-            <p className="text-gray-500 text-xs">Chi tiêu</p>
-            <p className="font-bold text-danger mt-0.5">↓ {formatVND(summary.expense)}</p>
-          </div>
+        <div className="grid grid-cols-2 gap-2.5 mt-4">
+          <StatGlass kind="income" label="Thu nhập" value={summary.income} />
+          <StatGlass kind="expense" label="Chi tiêu" value={summary.expense} />
         </div>
       </div>
 
@@ -81,126 +84,160 @@ export default async function DashboardPage() {
       </div>
 
       {budgets.length > 0 && (
-        <div className="card">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="font-bold text-lg">Ngân sách tháng này</h2>
-            <Link href="/budgets" className="text-sm text-primary-700 font-semibold">Xem →</Link>
+        <section>
+          <div className="flex items-center justify-between mb-3 px-1">
+            <h2 className="section-title">Ngân sách tháng này</h2>
+            <Link href="/budgets" className="section-link">Xem →</Link>
           </div>
-          <ul className="space-y-3">
-            {budgets.map((b) => {
-              const over = b.percent > 100;
-              return (
-                <li key={b.categoryId}>
-                  <div className="flex justify-between text-sm mb-1.5">
-                    <span className="font-semibold flex items-center gap-1.5">
-                      <span>{b.categoryIcon || "📦"}</span>
-                      {b.categoryName}
-                    </span>
-                    <span className={`font-bold tabular-nums ${over ? "text-danger" : "text-gray-700"}`}>
-                      {b.percent.toFixed(0)}%
-                    </span>
-                  </div>
-                  <div className="h-2 bg-rose-100 rounded-full overflow-hidden">
-                    <div
-                      className="h-full rounded-full transition-all"
-                      style={{
-                        width: `${Math.min(100, b.percent)}%`,
-                        background: over
-                          ? "linear-gradient(90deg,#FCA5A5,#DC2626)"
-                          : b.percent > 80
-                            ? "linear-gradient(90deg,#FBBF24,#F59E0B)"
-                            : "linear-gradient(90deg,#F783A8,#E64980)",
-                      }}
-                    />
-                  </div>
-                  <p className="text-[11px] text-gray-500 mt-1 tabular-nums">{formatVND(b.spent)} / {formatVND(b.amount)}</p>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
+          <div className="card">
+            <ul className="space-y-3.5">
+              {budgets.map((b) => {
+                const over = b.percent > 100;
+                const warn = !over && b.percent > 80;
+                const fillGradient = over
+                  ? "linear-gradient(90deg,#FF7088,#FF2D55)"
+                  : warn
+                    ? "linear-gradient(90deg,#FFC97A,#FF8A4D)"
+                    : "linear-gradient(90deg, var(--accent-2), var(--accent-1))";
+                return (
+                  <li key={b.categoryId}>
+                    <div className="flex justify-between text-sm mb-1.5">
+                      <span className="font-bold inline-flex items-center gap-2 text-ink-1">
+                        <span
+                          className="w-7 h-7 rounded-xl grid place-items-center text-sm"
+                          style={{ background: "var(--glass-bg-strong)", border: "1px solid var(--glass-border)" }}
+                        >
+                          {b.categoryIcon || "📦"}
+                        </span>
+                        {b.categoryName}
+                      </span>
+                      <span className={`font-extrabold num ${over ? "text-danger-ink" : "text-ink-2"}`}>
+                        {b.percent.toFixed(0)}%
+                      </span>
+                    </div>
+                    <div className="progress-track">
+                      <div
+                        className="progress-fill"
+                        style={{ width: `${Math.min(100, b.percent)}%`, background: fillGradient }}
+                      />
+                    </div>
+                    <p className="text-[11px] text-ink-3 mt-1 num">
+                      {formatVND(b.spent)} / {formatVND(b.amount)}
+                    </p>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        </section>
       )}
 
-      <div className="card">
-        <h2 className="font-bold text-lg mb-3">Top danh mục chi</h2>
-        {summary.topCategories.length === 0 ? (
-          <p className="text-sm text-gray-500">Chưa có giao dịch nào tháng này.</p>
-        ) : (
-          <ul className="space-y-3">
-            {summary.topCategories.map((c) => (
-              <li key={c.id} className="flex items-center justify-between text-sm">
-                <span className="flex items-center gap-2.5">
-                  <span className="w-2.5 h-2.5 rounded-full" style={{ background: c.color || "#F783A8" }} />
-                  <span className="font-medium">{c.name}</span>
-                </span>
-                <span className="font-bold text-gray-800">{formatVND(c.total)}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-
-      <div className="card">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="font-bold text-lg">Chi tiêu gần đây</h2>
-          <Link href="/history" className="text-sm text-primary-700 font-semibold">Xem tất cả →</Link>
+      <section>
+        <div className="flex items-center justify-between mb-3 px-1">
+          <h2 className="section-title">Top danh mục chi</h2>
         </div>
-        {recent.length === 0 ? (
-          <p className="text-sm text-gray-500">Chưa có giao dịch. <Link href="/add" className="text-primary-700 font-semibold">Thêm ngay</Link></p>
-        ) : (
-          <ul className="space-y-3">
-            {recent.map((t) => (
-              <li key={t.id} className="flex items-center justify-between">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-12 h-12 rounded-2xl bg-rose-50 border border-rose-100 flex items-center justify-center text-xl shrink-0">
-                    {t.category.icon || (t.type === "INCOME" ? "💰" : "💸")}
+        <div className="card">
+          {summary.topCategories.length === 0 ? (
+            <p className="text-sm text-ink-3">Chưa có giao dịch nào tháng này.</p>
+          ) : (
+            <ul className="space-y-3">
+              {summary.topCategories.map((c) => (
+                <li key={c.id} className="flex items-center justify-between text-sm">
+                  <span className="flex items-center gap-2.5">
+                    <span
+                      className="w-2.5 h-2.5 rounded-full"
+                      style={{ background: c.color || "var(--accent-1)", boxShadow: `0 0 12px ${c.color || "var(--accent-1)"}` }}
+                    />
+                    <span className="font-semibold text-ink-1">{c.name}</span>
+                  </span>
+                  <span className="font-extrabold text-ink-1 num">{formatVND(c.total)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </section>
+
+      <section>
+        <div className="flex items-center justify-between mb-3 px-1">
+          <h2 className="section-title">Chi tiêu gần đây</h2>
+          <Link href="/history" className="section-link">Xem tất cả →</Link>
+        </div>
+        <div className="card">
+          {recent.length === 0 ? (
+            <p className="text-sm text-ink-3">
+              Chưa có giao dịch. <Link href="/add" className="text-accent font-semibold">Thêm ngay</Link>
+            </p>
+          ) : (
+            <ul className="space-y-1">
+              {recent.map((t) => (
+                <li key={t.id} className="flex items-center justify-between py-2.5 px-1">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div
+                      className="w-11 h-11 rounded-2xl flex items-center justify-center text-xl shrink-0"
+                      style={{
+                        background: "var(--glass-bg-strong)",
+                        border: "1px solid var(--glass-border)",
+                        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.2)",
+                      }}
+                    >
+                      {t.category.icon || (t.type === "INCOME" ? "💰" : "💸")}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold truncate text-ink-1">{t.category.name}</p>
+                      <p className="text-xs text-ink-3 truncate">
+                        {formatDate(t.date)} · {t.paidBy.user.name}
+                        {t.note ? ` · ${t.note}` : ""}
+                      </p>
+                    </div>
                   </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-bold truncate">{t.category.name}</p>
-                    <p className="text-xs text-gray-500 truncate">
-                      {formatDate(t.date)} · {t.paidBy.user.name}
-                      {t.note ? ` · ${t.note}` : ""}
-                    </p>
-                  </div>
-                </div>
-                <span className={`text-sm font-bold shrink-0 ${t.type === "INCOME" ? "text-success" : "text-gray-900"}`}>
-                  {t.type === "INCOME" ? "+" : "-"}{formatVND(t.amount.toString())}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+                  <span className={`text-sm font-extrabold shrink-0 num ${t.type === "INCOME" ? "text-success-ink" : "text-ink-1"}`}>
+                    {t.type === "INCOME" ? "+" : "−"}{formatVND(t.amount.toString())}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </section>
 
       {goals.length > 0 && (
-        <div className="card">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="font-bold text-lg">Mục tiêu đang chạy</h2>
-            <Link href="/savings" className="text-sm text-primary-700 font-semibold">Xem →</Link>
+        <section>
+          <div className="flex items-center justify-between mb-3 px-1">
+            <h2 className="section-title">Mục tiêu đang chạy</h2>
+            <Link href="/savings" className="section-link">Xem →</Link>
           </div>
-          <ul className="space-y-4">
+          <div className="card space-y-4">
             {goals.map((g) => {
               const total = g.contributions.reduce((s, c) => s + Number(c.amount), 0);
               const target = Number(g.targetAmount);
               const pct = target > 0 ? Math.min(100, (total / target) * 100) : 0;
               return (
-                <li key={g.id}>
+                <div key={g.id}>
                   <div className="flex justify-between text-sm mb-1.5">
-                    <span className="font-bold">🎯 {g.name}</span>
-                    <span className="text-primary-700 font-bold">{pct.toFixed(0)}%</span>
+                    <span className="font-bold text-ink-1 inline-flex items-center gap-2">
+                      <span
+                        className="w-8 h-8 rounded-xl grid place-items-center text-base text-white"
+                        style={{
+                          background: "linear-gradient(135deg, var(--accent-2), var(--accent-1))",
+                          boxShadow: "0 6px 16px -4px var(--accent-1)",
+                        }}
+                      >
+                        🎯
+                      </span>
+                      {g.name}
+                    </span>
+                    <span className="text-accent font-extrabold num">{pct.toFixed(0)}%</span>
                   </div>
-                  <div className="h-2.5 bg-rose-100 rounded-full overflow-hidden">
-                    <div
-                      className="h-full rounded-full transition-all"
-                      style={{ width: `${pct}%`, background: "linear-gradient(90deg,#F783A8,#E64980)" }}
-                    />
+                  <div className="progress-track">
+                    <div className="progress-fill" style={{ width: `${pct}%` }} />
                   </div>
-                  <p className="text-xs text-gray-500 mt-1.5">{formatVND(total)} / {formatVND(target)}</p>
-                </li>
+                  <p className="text-xs text-ink-3 mt-1.5 num">{formatVND(total)} / {formatVND(target)}</p>
+                </div>
               );
             })}
-          </ul>
-        </div>
+          </div>
+        </section>
       )}
     </div>
   );
@@ -209,51 +246,39 @@ export default async function DashboardPage() {
 function Stat({ label, value, icon }: { label: string; value: string; icon: string }) {
   return (
     <div className="card !p-4">
-      <div className="flex items-center gap-2 text-xs text-gray-500">
+      <div className="flex items-center gap-2 text-xs text-ink-3">
         <span>{icon}</span>
         <span>{label}</span>
       </div>
-      <p className="text-base font-bold mt-1.5 tracking-tight">{formatVND(value)}</p>
+      <p className="text-base font-extrabold mt-1.5 num text-ink-1">{formatVND(value)}</p>
     </div>
   );
 }
 
-function BalanceRing({ income, expense }: { income: number; expense: number }) {
-  const balance = income - expense;
-  const size = 200;
-  const stroke = 14;
-  const r = (size - stroke) / 2;
-  const c = 2 * Math.PI * r;
-  const total = income + expense;
-  const savedPct = total > 0 ? Math.min(100, (income / total) * 100) : 0;
-  const dash = (savedPct / 100) * c;
-
+function StatGlass({ kind, label, value }: { kind: "income" | "expense"; label: string; value: string }) {
+  const isIncome = kind === "income";
   return (
-    <div className="relative" style={{ width: size, height: size }}>
-      <svg width={size} height={size} className="-rotate-90">
-        <circle cx={size / 2} cy={size / 2} r={r} stroke="#FFFFFF" strokeOpacity="0.6" strokeWidth={stroke} fill="none" />
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={r}
-          stroke="url(#ringGrad)"
-          strokeWidth={stroke}
-          strokeLinecap="round"
-          fill="none"
-          strokeDasharray={`${dash} ${c - dash}`}
-        />
-        <defs>
-          <linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="#F783A8" />
-            <stop offset="100%" stopColor="#E64980" />
-          </linearGradient>
-        </defs>
-      </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-        <p className="text-xs text-gray-500">Số dư</p>
-        <p className={`text-2xl font-extrabold tracking-tight ${balance >= 0 ? "text-gray-900" : "text-danger"}`}>
-          {formatVND(String(balance))}
-        </p>
+    <div
+      className="flex items-center gap-3 rounded-2xl px-3.5 py-3"
+      style={{
+        background: "var(--glass-bg-strong)",
+        backdropFilter: "blur(28px) saturate(180%)",
+        WebkitBackdropFilter: "blur(28px) saturate(180%)",
+        border: "1px solid var(--glass-border)",
+      }}
+    >
+      <div
+        className="w-9 h-9 rounded-xl grid place-items-center text-base shrink-0 font-bold"
+        style={{
+          background: isIncome ? "color-mix(in srgb, var(--success) 18%, transparent)" : "color-mix(in srgb, var(--danger) 18%, transparent)",
+          color: isIncome ? "var(--success)" : "var(--danger)",
+        }}
+      >
+        {isIncome ? "↗" : "↘"}
+      </div>
+      <div className="min-w-0">
+        <p className="text-[11px] font-semibold text-ink-3">{label}</p>
+        <p className="text-[15px] font-extrabold text-ink-1 num leading-tight">{formatVND(value)}</p>
       </div>
     </div>
   );

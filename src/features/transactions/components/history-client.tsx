@@ -140,10 +140,10 @@ export function HistoryClient({ currentMemberId }: { currentMemberId: string }) 
 
   return (
     <PullToRefresh onRefresh={() => load(true, 1)}>
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold">Lịch sử giao dịch</h1>
-        <a href={exportUrl()} className="btn-ghost text-sm">📤 Export CSV</a>
+    <div className="space-y-4 animate-fade-in">
+      <div className="flex items-center justify-between px-1">
+        <h1 className="text-2xl font-extrabold tracking-tight">Lịch sử giao dịch</h1>
+        <a href={exportUrl()} className="btn-ghost text-sm">📤 Export</a>
       </div>
 
       <form
@@ -179,10 +179,8 @@ export function HistoryClient({ currentMemberId }: { currentMemberId: string }) 
                   key={p.label}
                   type="button"
                   onClick={() => apply(p)}
-                  className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition ${
-                    active
-                      ? "bg-primary text-white border-primary shadow-[0_6px_18px_rgba(247,131,168,0.35)]"
-                      : "bg-white text-gray-700 border-rose-100 hover:bg-rose-50"
+                  className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-semibold transition ${
+                    active ? "chip-accent" : "chip"
                   }`}
                 >
                   {p.label}
@@ -256,7 +254,14 @@ export function HistoryClient({ currentMemberId }: { currentMemberId: string }) 
               const isOwner = t.createdById === currentMemberId;
               const row = (
                 <div className="p-3 flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full flex items-center justify-center text-lg shrink-0" style={{ background: (t.category.color || "#6b7280") + "22" }}>
+                  <div
+                    className="w-11 h-11 rounded-2xl flex items-center justify-center text-lg shrink-0"
+                    style={{
+                      background: (t.category.color || "#6b7280") + "22",
+                      border: "1px solid var(--glass-border)",
+                      boxShadow: "inset 0 1px 0 rgba(255,255,255,0.18)",
+                    }}
+                  >
                     {t.category.icon || "📦"}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -284,8 +289,8 @@ export function HistoryClient({ currentMemberId }: { currentMemberId: string }) 
                     )}
                   </div>
                   <div className="text-right shrink-0">
-                    <p className={t.type === "INCOME" ? "text-success font-semibold" : "text-danger font-semibold"}>
-                      {t.type === "INCOME" ? "+" : "-"}{formatVND(t.amount)}
+                    <p className={`num font-extrabold ${t.type === "INCOME" ? "text-success-ink" : "text-ink-1"}`}>
+                      {t.type === "INCOME" ? "+" : "−"}{formatVND(t.amount)}
                     </p>
                     {!isOwner && (
                       <p className="text-[11px] text-gray-400 mt-0.5">Của {t.paidBy.user.name}</p>

@@ -10,7 +10,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <Providers>
       <TopBar />
-      <main className="max-w-5xl mx-auto px-4 py-4 pb-32 desktop:pb-8">{children}</main>
+      <main className="max-w-5xl mx-auto px-4 py-5 pb-36 desktop:pb-8">{children}</main>
       <BottomNav />
       <InstallPrompt />
       <ConfettiHost />

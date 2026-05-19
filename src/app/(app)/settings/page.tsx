@@ -22,21 +22,30 @@ export default async function SettingsIndexPage() {
   ].filter(Boolean) as { href: string; icon: string; title: string; desc: string }[];
 
   return (
-    <div className="space-y-4">
-      <h1 className="text-xl font-bold">Cài đặt</h1>
+    <div className="space-y-4 animate-fade-in">
+      <h1 className="text-2xl font-extrabold tracking-tight px-1">Cài đặt</h1>
       <ul className="grid gap-3 desktop:grid-cols-2">
         {items.map((it) => (
           <li key={it.href}>
             <Link
               href={it.href}
-              className="card flex items-center gap-3 hover:border-primary/40 hover:shadow transition"
+              className="card flex items-center gap-3 hover:border-accent/40 transition"
             >
-              <span className="text-2xl">{it.icon}</span>
-              <div className="flex-1">
-                <p className="font-medium">{it.title}</p>
-                <p className="text-xs text-gray-500">{it.desc}</p>
+              <span
+                className="w-11 h-11 rounded-2xl grid place-items-center text-xl shrink-0"
+                style={{
+                  background: "var(--glass-bg-strong)",
+                  border: "1px solid var(--glass-border)",
+                  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.2)",
+                }}
+              >
+                {it.icon}
+              </span>
+              <div className="flex-1 min-w-0">
+                <p className="font-bold text-ink-1">{it.title}</p>
+                <p className="text-xs text-ink-3 mt-0.5">{it.desc}</p>
               </div>
-              <span className="text-gray-400">›</span>
+              <span className="text-ink-3 text-lg">›</span>
             </Link>
           </li>
         ))}

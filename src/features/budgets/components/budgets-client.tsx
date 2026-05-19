@@ -93,8 +93,8 @@ export function BudgetsClient({ canManage }: { canManage: boolean }) {
   return (
     <PullToRefresh onRefresh={() => load(month, scope)}>
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold">Ngân sách</h1>
+      <div className="flex items-center justify-between px-1">
+        <h1 className="text-2xl font-extrabold tracking-tight">Ngân sách</h1>
       </div>
 
       {/* Tabs cá nhân / chung */}

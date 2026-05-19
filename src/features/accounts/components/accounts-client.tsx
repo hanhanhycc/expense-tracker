@@ -118,9 +118,9 @@ export function AccountsClient({ canManage }: { canManage: boolean }) {
 
   return (
     <div className="space-y-4 max-w-2xl mx-auto">
-      <div>
-        <h1 className="text-xl font-bold">Tài khoản</h1>
-        <p className="text-sm text-gray-500 mt-1">
+      <div className="px-1">
+        <h1 className="text-2xl font-extrabold tracking-tight">Tài khoản</h1>
+        <p className="text-sm text-ink-3 mt-1">
           Nguồn tiền chi/thu: tiền mặt, ngân hàng, thẻ tín dụng, ví điện tử...
         </p>
       </div>

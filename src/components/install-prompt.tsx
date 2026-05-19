@@ -130,7 +130,7 @@ export function InstallPrompt() {
   return (
     <>
       <div className="fixed bottom-24 left-3 right-3 z-40 desktop:bottom-6 desktop:left-auto desktop:right-6 desktop:max-w-sm">
-        <div className="bg-white rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.15)] border border-gray-100 p-4 flex items-start gap-3">
+        <div className="card-strong p-4 flex items-start gap-3">
           <img src="/logo.svg" alt="" className="h-10 w-10 shrink-0" />
           <div className="flex-1 text-sm">
             <p className="font-semibold">Cài Saving Money</p>
@@ -164,7 +164,7 @@ export function InstallPrompt() {
       {iosOpen && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4" onClick={dismiss}>
           <div
-            className="bg-white rounded-2xl shadow-2xl p-5 max-w-sm w-full"
+            className="card-strong p-5 max-w-sm w-full"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center gap-3 mb-3">

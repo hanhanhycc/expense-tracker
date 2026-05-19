@@ -14,7 +14,7 @@ export default async function FamilySettingsPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-bold">Thông tin gia đình</h1>
+      <h1 className="text-2xl font-extrabold tracking-tight px-1">Thông tin gia đình</h1>
       <FamilyForm initial={{ name: family?.name ?? "" }} />
     </div>
   );

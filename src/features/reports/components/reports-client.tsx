@@ -51,10 +51,8 @@ export function ReportsClient() {
           <button
             key={r.key}
             onClick={() => setRange(r.key)}
-            className={`shrink-0 px-4 py-2 rounded-full text-sm font-semibold border transition ${
-              range === r.key
-                ? "bg-primary text-white border-primary shadow-[0_8px_24px_rgba(247,131,168,0.35)]"
-                : "bg-white text-gray-700 border-rose-100 hover:bg-rose-50"
+            className={`shrink-0 px-4 py-2 rounded-full text-sm font-semibold transition ${
+              range === r.key ? "chip-accent" : "chip"
             }`}
           >
             {r.label}
@@ -97,11 +95,14 @@ function ReportContent({ data }: { data: Report }) {
     <div className="space-y-4">
       {/* Hero KPI */}
       <div
-        className="rounded-3xl p-5 border border-rose-200 shadow-[0_12px_40px_rgba(231,72,128,0.18)] text-white"
-        style={{ background: "linear-gradient(135deg,#F783A8 0%,#E64980 100%)" }}
+        className="rounded-3xl p-5 text-white relative overflow-hidden"
+        style={{
+          background: "linear-gradient(135deg, rgb(var(--accent-1-rgb)) 0%, rgb(var(--accent-2-rgb)) 100%)",
+          boxShadow: "0 18px 50px -12px rgb(var(--accent-1-rgb) / 0.45)",
+        }}
       >
-        <p className="text-xs uppercase tracking-wider opacity-90">Số dư trong kỳ</p>
-        <p className="text-3xl font-extrabold mt-1">{formatVND(totals.balance)}</p>
+        <p className="text-[11px] uppercase tracking-[0.12em] font-bold opacity-90">Số dư trong kỳ</p>
+        <p className="text-4xl font-extrabold mt-1 num" style={{ letterSpacing: "-0.035em" }}>{formatVND(totals.balance)}</p>
         <div className="grid grid-cols-2 gap-3 mt-4">
           <KpiBox label="Thu" value={totals.income} delta={deltas.income} positiveIsGood />
           <KpiBox label="Chi" value={totals.expense} delta={deltas.expense} positiveIsGood={false} />

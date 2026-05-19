@@ -173,17 +173,29 @@ export function NotificationsBell() {
     <div className="relative" ref={ref}>
       <button
         onClick={() => setOpen((o) => !o)}
-        className="relative w-11 h-11 rounded-full hover:bg-rose-50 flex items-center justify-center text-gray-700 hover:text-primary-700 transition touch-manipulation"
+        className="relative w-10 h-10 rounded-full flex items-center justify-center text-ink-1 transition touch-manipulation"
+        style={{
+          background: "var(--glass-bg-strong)",
+          border: "1px solid var(--glass-border)",
+          backdropFilter: "blur(20px) saturate(180%)",
+          WebkitBackdropFilter: "blur(20px) saturate(180%)",
+        }}
         aria-label="Thông báo"
         aria-haspopup="menu"
         aria-expanded={open}
       >
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="w-[18px] h-[18px]">
           <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
           <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
         </svg>
         {unreadCount > 0 && (
-          <span className="absolute top-0.5 right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-danger text-white text-[10px] font-bold flex items-center justify-center shadow ring-2 ring-white">
+          <span
+            className="absolute top-0.5 right-0.5 min-w-[18px] h-[18px] px-1 rounded-full text-white text-[10px] font-bold flex items-center justify-center"
+            style={{
+              background: "linear-gradient(135deg, var(--accent-1), var(--danger))",
+              boxShadow: "0 0 0 2px var(--bg-base), 0 0 12px var(--accent-1)",
+            }}
+          >
             {unreadCount > 99 ? "99+" : unreadCount}
           </span>
         )}
@@ -192,7 +204,15 @@ export function NotificationsBell() {
       {open && (
         <div
           role="menu"
-          className="absolute right-0 top-12 w-80 max-w-[calc(100vw-2rem)] bg-white rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.12)] border border-gray-100 overflow-hidden"
+          className="absolute right-0 top-12 w-80 max-w-[calc(100vw-2rem)] rounded-2xl overflow-hidden"
+          style={{
+            background: "var(--glass-bg-strong)",
+            backdropFilter: "blur(36px) saturate(180%)",
+            WebkitBackdropFilter: "blur(36px) saturate(180%)",
+            border: "1px solid var(--glass-border)",
+            boxShadow: "var(--glass-shadow-lg)",
+            color: "var(--ink-1)",
+          }}
         >
           <div className="px-4 py-3 border-b flex items-center justify-between">
             <div className="font-semibold text-gray-800">Thông báo</div>

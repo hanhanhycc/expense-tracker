@@ -9,9 +9,9 @@ export default async function SettingsDebugPage() {
 
   return (
     <div className="space-y-4 max-w-2xl mx-auto">
-      <div>
-        <h1 className="text-xl font-bold">🛠 Debug & Bảo trì</h1>
-        <p className="text-sm text-gray-500 mt-1">Công cụ chẩn đoán dành cho ADMIN/OWNER.</p>
+      <div className="px-1">
+        <h1 className="text-2xl font-extrabold tracking-tight">🛠 Debug & Bảo trì</h1>
+        <p className="text-sm text-ink-3 mt-1">Công cụ chẩn đoán dành cho ADMIN/OWNER.</p>
       </div>
       <DebugClient />
     </div>

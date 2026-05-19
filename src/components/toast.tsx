@@ -70,20 +70,26 @@ function ToastItem({ toast, onClose }: { toast: Toast; onClose: () => void }) {
     return () => clearTimeout(t);
   }, []);
 
-  const color =
+  const gradient =
     toast.type === "success"
-      ? "bg-success text-white"
+      ? "linear-gradient(135deg, var(--success), #0EA5C0)"
       : toast.type === "error"
-        ? "bg-danger text-white"
-        : "bg-gray-900 text-white";
+        ? "linear-gradient(135deg, var(--danger), #FF2D55)"
+        : "linear-gradient(135deg, var(--accent-1), var(--accent-2))";
 
   const icon = toast.type === "success" ? "✓" : toast.type === "error" ? "✕" : "ℹ";
 
   return (
     <div
-      className={`pointer-events-auto ${color} rounded-xl shadow-lg px-4 py-3 text-sm flex items-start gap-3 transition-all duration-200 ${
+      className={`pointer-events-auto text-white rounded-2xl px-4 py-3 text-sm flex items-start gap-3 transition-all duration-200 ${
         shown ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-2"
       }`}
+      style={{
+        background: gradient,
+        boxShadow: "0 14px 40px -8px rgba(0,0,0,0.25), 0 0 0 1px rgba(255,255,255,0.18) inset",
+        backdropFilter: "blur(20px) saturate(180%)",
+        WebkitBackdropFilter: "blur(20px) saturate(180%)",
+      }}
       role="status"
     >
       <span className="font-bold">{icon}</span>

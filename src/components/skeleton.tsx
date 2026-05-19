@@ -1,7 +1,7 @@
 import clsx from "clsx";
 
 export function Skeleton({ className }: { className?: string }) {
-  return <div className={clsx("skeleton-shimmer rounded-md bg-rose-100/80", className)} />;
+  return <div className={clsx("skeleton-shimmer rounded-xl", className)} />;
 }
 
 export function SkeletonList({ rows = 5 }: { rows?: number }) {

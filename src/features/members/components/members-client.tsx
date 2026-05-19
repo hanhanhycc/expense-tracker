@@ -71,7 +71,7 @@ export function MembersClient({
 
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-bold">Thành viên gia đình</h1>
+      <h1 className="text-2xl font-extrabold tracking-tight px-1">Thành viên gia đình</h1>
 
       {canManage && (
         <div className="card space-y-3">

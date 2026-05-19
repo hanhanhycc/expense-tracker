@@ -10,9 +10,14 @@ type Action = {
 };
 
 const colorMap: Record<Action["color"], string> = {
-  primary: "bg-primary text-white",
-  danger: "bg-danger text-white",
-  gray: "bg-gray-500 text-white",
+  primary: "text-white",
+  danger: "text-white",
+  gray: "text-white",
+};
+const colorStyle: Record<Action["color"], string> = {
+  primary: "linear-gradient(135deg, var(--accent-1), var(--accent-2))",
+  danger: "linear-gradient(135deg, var(--danger), #FF2D55)",
+  gray: "linear-gradient(135deg, rgb(var(--ink-3-rgb)), rgb(var(--ink-2-rgb)))",
 };
 
 /**
@@ -82,7 +87,7 @@ export function SwipeActions({
             type="button"
             onClick={() => { a.onClick(); close(); }}
             className={`h-full flex flex-col items-center justify-center gap-0.5 text-xs font-bold ${colorMap[a.color]}`}
-            style={{ width: actionWidth }}
+            style={{ width: actionWidth, background: colorStyle[a.color] }}
           >
             {a.icon && <span className="text-base leading-none">{a.icon}</span>}
             <span>{a.label}</span>
@@ -92,8 +97,9 @@ export function SwipeActions({
 
       {/* Content (slides) */}
       <div
-        className="relative bg-white"
+        className="relative"
         style={{
+          background: "var(--bg-base)",
           transform: `translateX(${offset}px)`,
           transition: dragging.current ? "none" : "transform 200ms ease",
         }}

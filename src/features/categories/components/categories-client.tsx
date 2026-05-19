@@ -222,7 +222,7 @@ export function CategoriesClient({ canManage }: { canManage: boolean }) {
   return (
     <div className="space-y-4 max-w-2xl mx-auto">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold">Danh mục</h1>
+        <h1 className="text-2xl font-extrabold tracking-tight">Danh mục</h1>
         {canManage && (
           <button
             onClick={applyDefaults}

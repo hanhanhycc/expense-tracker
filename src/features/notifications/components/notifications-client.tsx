@@ -93,9 +93,9 @@ export function NotificationsClient() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold">Thông báo</h1>
-        {marking && <span className="text-xs text-gray-400">Đang đánh dấu đã đọc...</span>}
+      <div className="flex items-center justify-between px-1">
+        <h1 className="text-2xl font-extrabold tracking-tight">Thông báo</h1>
+        {marking && <span className="text-xs text-ink-3">Đang đánh dấu đã đọc...</span>}
       </div>
 
       <div className="card !p-0">

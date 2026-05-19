@@ -4,8 +4,8 @@ import { TransactionForm } from "@/features/transactions/components/transaction-
 export default async function AddPage() {
   const session = await requireAuth();
   return (
-    <div className="max-w-md mx-auto">
-      <h1 className="text-xl font-bold mb-4">Thêm giao dịch</h1>
+    <div className="max-w-md mx-auto animate-fade-in">
+      <h1 className="text-2xl font-extrabold tracking-tight mb-4 px-1">Thêm giao dịch</h1>
       <TransactionForm currentMemberId={session.user.memberId} />
     </div>
   );

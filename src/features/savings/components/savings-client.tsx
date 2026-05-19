@@ -127,7 +127,7 @@ export function SavingsClient({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold">Mục tiêu tiết kiệm</h1>
+        <h1 className="text-2xl font-extrabold tracking-tight">Mục tiêu tiết kiệm</h1>
         <div className="flex gap-2">
           <a href="/api/export/savings" className="btn-ghost text-sm">📤 Export</a>
           <button onClick={() => setShowCreate(true)} className="btn-primary text-sm">+ Tạo mới</button>

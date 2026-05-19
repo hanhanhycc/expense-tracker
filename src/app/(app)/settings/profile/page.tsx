@@ -10,7 +10,7 @@ export default async function ProfilePage() {
   });
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-bold">Thông tin cá nhân</h1>
+      <h1 className="text-2xl font-extrabold tracking-tight px-1">Thông tin cá nhân</h1>
       <ProfileForm initial={{ name: user?.name ?? "", email: user?.email ?? "", phone: user?.phone ?? "" }} />
     </div>
   );

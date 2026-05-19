@@ -37,11 +37,21 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="card">
+    <div className="card-strong">
       <div className="flex flex-col items-center mb-6">
-        <img src="/logo.svg" alt="Saving Money" className="h-24 w-24 mb-3 rounded-3xl shadow-[0_12px_30px_rgba(231,72,128,0.25)]" />
-        <h1 className="text-3xl font-extrabold tracking-tight">Im new!</h1>
-        <p className="text-gray-500 text-sm mt-0.5">Tạo tài khoản Saving Money miễn phí</p>
+        <img
+          src="/logo.svg"
+          alt="Saving Money"
+          className="h-24 w-24 mb-3 rounded-3xl"
+          style={{ boxShadow: "0 18px 40px -10px rgb(var(--accent-1-rgb) / 0.45)" }}
+        />
+        <h1
+          className="text-3xl font-extrabold tracking-tight bg-clip-text text-transparent"
+          style={{ backgroundImage: "linear-gradient(135deg, var(--accent-1), var(--accent-2))" }}
+        >
+          Im new!
+        </h1>
+        <p className="text-ink-3 text-sm mt-0.5">Tạo tài khoản Saving Money miễn phí</p>
       </div>
       <form onSubmit={onSubmit} className="space-y-4">
         <div>
@@ -79,9 +89,9 @@ export default function RegisterPage() {
           {loading ? "Đang tạo..." : "Đăng ký"}
         </button>
       </form>
-      <p className="text-sm text-center mt-5 text-gray-600">
+      <p className="text-sm text-center mt-5 text-ink-2">
         Đã có tài khoản?{" "}
-        <Link href="/login" className="text-primary font-medium">Đăng nhập</Link>
+        <Link href="/login" className="text-accent font-bold">Đăng nhập</Link>
       </p>
     </div>
   );
