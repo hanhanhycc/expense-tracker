@@ -504,19 +504,21 @@ function CategoryPicker({
         })}
       </div>
 
-      {/* Bottom sheet hiển thị children */}
+      {/* Centered modal hiển thị children */}
       {sheetGroup && (
         <div
-          className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
+          className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4"
           onClick={() => setSheetGroupId(null)}
         >
           <div
-            className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl max-h-[80vh] overflow-y-auto p-4 pb-8 shadow-[0_-10px_40px_rgba(0,0,0,0.2)] animate-slide-up"
+            className="w-full max-w-md max-h-[85vh] overflow-y-auto rounded-3xl p-5 animate-fade-in"
+            style={{
+              background: "var(--popover-bg)",
+              border: "1px solid var(--popover-border)",
+              boxShadow: "var(--glass-shadow-lg)",
+            }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex justify-center mb-3">
-              <div className="w-12 h-1 bg-gray-200 rounded-full" />
-            </div>
             <div className="flex items-center gap-3 mb-4">
               <span
                 className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl"
