@@ -141,9 +141,9 @@ export function HistoryClient({ currentMemberId }: { currentMemberId: string }) 
   return (
     <PullToRefresh onRefresh={() => load(true, 1)}>
     <div className="space-y-4 animate-fade-in">
-      <div className="flex items-center justify-between px-1">
-        <h1 className="text-2xl font-extrabold tracking-tight">Lịch sử giao dịch</h1>
-        <a href={exportUrl()} className="btn-ghost text-sm">📤 Export</a>
+      <div className="flex items-center justify-between gap-3 px-1">
+        <h1 className="text-2xl font-extrabold tracking-tight min-w-0">Lịch sử giao dịch</h1>
+        <a href={exportUrl()} className="btn-ghost text-sm shrink-0 whitespace-nowrap">📤 Export</a>
       </div>
 
       <form

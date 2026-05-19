@@ -221,13 +221,13 @@ export function CategoriesClient({ canManage }: { canManage: boolean }) {
   // ─────────────────────────────────────────────
   return (
     <div className="space-y-4 max-w-2xl mx-auto">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between px-1">
         <h1 className="text-2xl font-extrabold tracking-tight">Danh mục</h1>
         {canManage && (
           <button
             onClick={applyDefaults}
             disabled={applying}
-            className="text-xs text-primary-700 hover:underline disabled:text-gray-400"
+            className="text-xs text-primary-700 hover:underline disabled:text-gray-400 self-start sm:self-auto whitespace-nowrap"
           >
             {applying ? "Đang áp dụng..." : "📥 Áp dụng cấu trúc mặc định"}
           </button>

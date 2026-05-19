@@ -204,12 +204,10 @@ export function NotificationsBell() {
       {open && (
         <div
           role="menu"
-          className="absolute right-0 top-12 w-80 max-w-[calc(100vw-2rem)] rounded-2xl overflow-hidden"
+          className="absolute right-0 top-12 z-50 w-80 max-w-[calc(100vw-2rem)] rounded-2xl overflow-hidden"
           style={{
-            background: "var(--glass-bg-strong)",
-            backdropFilter: "blur(36px) saturate(180%)",
-            WebkitBackdropFilter: "blur(36px) saturate(180%)",
-            border: "1px solid var(--glass-border)",
+            background: "var(--popover-bg)",
+            border: "1px solid var(--popover-border)",
             boxShadow: "var(--glass-shadow-lg)",
             color: "var(--ink-1)",
           }}

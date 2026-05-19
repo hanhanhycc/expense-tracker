@@ -74,12 +74,10 @@ export function TopBar() {
             {open && (
               <div
                 role="menu"
-                className="absolute right-0 top-12 w-60 rounded-2xl py-1 text-sm overflow-hidden"
+                className="absolute right-0 top-12 z-50 w-60 rounded-2xl py-1 text-sm overflow-hidden"
                 style={{
-                  background: "var(--glass-bg-strong)",
-                  backdropFilter: "blur(36px) saturate(180%)",
-                  WebkitBackdropFilter: "blur(36px) saturate(180%)",
-                  border: "1px solid var(--glass-border)",
+                  background: "var(--popover-bg)",
+                  border: "1px solid var(--popover-border)",
                   boxShadow: "var(--glass-shadow-lg)",
                   color: "var(--ink-1)",
                 }}

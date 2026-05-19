@@ -50,6 +50,10 @@
   --field-bg: rgba(255, 255, 255, 0.75);
   --field-border: rgba(232, 220, 240, 0.85);
   --field-placeholder: #B6AEC2;
+
+  /* Popover/dropdown — phải opaque đủ mạnh để text bên dưới không "đâm" qua khi cả 2 lớp cùng có backdrop-filter (quirk Chromium/Safari). */
+  --popover-bg: rgba(255, 248, 251, 0.96);
+  --popover-border: rgba(232, 220, 240, 0.95);
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -84,6 +88,9 @@
     --field-bg: rgba(255, 255, 255, 0.06);
     --field-border: rgba(255, 255, 255, 0.10);
     --field-placeholder: #6F6788;
+
+    --popover-bg: rgba(24, 18, 38, 0.96);
+    --popover-border: rgba(255, 255, 255, 0.14);
   }
 }
 

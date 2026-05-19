@@ -126,11 +126,11 @@ export function SavingsClient({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-1">
         <h1 className="text-2xl font-extrabold tracking-tight">Mục tiêu tiết kiệm</h1>
-        <div className="flex gap-2">
-          <a href="/api/export/savings" className="btn-ghost text-sm">📤 Export</a>
-          <button onClick={() => setShowCreate(true)} className="btn-primary text-sm">+ Tạo mới</button>
+        <div className="flex gap-2 shrink-0">
+          <a href="/api/export/savings" className="btn-ghost text-sm whitespace-nowrap">📤 Export</a>
+          <button onClick={() => setShowCreate(true)} className="btn-primary text-sm whitespace-nowrap">+ Tạo mới</button>
         </div>
       </div>
 
