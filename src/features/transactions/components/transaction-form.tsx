@@ -459,8 +459,8 @@ function CategoryPicker({
         </button>
       )}
 
-      {/* Grid card 4 cột mobile, 6 cột desktop */}
-      <div className="grid grid-cols-4 desktop:grid-cols-6 gap-2">
+      {/* Grid card 5 cột mobile, 7 cột desktop */}
+      <div className="grid grid-cols-5 desktop:grid-cols-7 gap-1.5">
         {sortedGroups.map((g) => {
           const kids = childrenOf(g.id);
           const hasKids = kids.length > 0;
@@ -479,23 +479,23 @@ function CategoryPicker({
                   onChange(g.id);
                 }
               }}
-              className={`relative aspect-[1/1.1] rounded-2xl border-2 p-1.5 flex flex-col items-center justify-center gap-1 transition active:scale-95 ${
+              className={`relative aspect-[1/1.15] rounded-2xl border-2 p-1 flex flex-col items-center justify-center gap-0.5 transition active:scale-95 ${
                 isSelectedHere
                   ? "border-primary bg-primary/10 shadow-[0_4px_12px_rgba(247,131,168,0.25)]"
                   : "border-rose-100 bg-white hover:border-rose-200"
               }`}
             >
               <span
-                className="w-9 h-9 rounded-xl flex items-center justify-center text-xl"
+                className="w-7 h-7 rounded-lg flex items-center justify-center text-base"
                 style={{ background: bg }}
               >
                 {g.icon || "📦"}
               </span>
-              <span className="text-[11px] leading-tight text-center font-medium text-gray-700 line-clamp-2 px-0.5">
+              <span className="text-[10px] leading-tight text-center font-semibold text-gray-700 line-clamp-2 px-0.5">
                 {g.name}
               </span>
               {hasKids && (
-                <span className="absolute top-1 right-1 min-w-[16px] h-4 px-1 rounded-full bg-gray-100 text-[9px] font-bold text-gray-500 flex items-center justify-center">
+                <span className="absolute top-0.5 right-0.5 min-w-[14px] h-[14px] px-1 rounded-full bg-gray-100 text-[8px] font-bold text-gray-500 flex items-center justify-center">
                   {kids.length}
                 </span>
               )}
@@ -537,7 +537,7 @@ function CategoryPicker({
                 ✕
               </button>
             </div>
-            <div className="grid grid-cols-3 desktop:grid-cols-5 gap-2">
+            <div className="grid grid-cols-4 desktop:grid-cols-6 gap-1.5">
               {childrenOf(sheetGroup.id).map((c) => {
                 const isSelected = value === c.id;
                 const bg = (c.color || sheetGroup.color || "#F783A8") + "1A";
@@ -549,19 +549,19 @@ function CategoryPicker({
                       onChange(c.id);
                       setSheetGroupId(null);
                     }}
-                    className={`relative aspect-[1/1.1] rounded-2xl border-2 p-1.5 flex flex-col items-center justify-center gap-1 transition active:scale-95 ${
+                    className={`relative aspect-[1/1.15] rounded-2xl border-2 p-1 flex flex-col items-center justify-center gap-0.5 transition active:scale-95 ${
                       isSelected
                         ? "border-primary bg-primary/10 shadow-[0_4px_12px_rgba(247,131,168,0.25)]"
                         : "border-rose-100 bg-white hover:border-rose-200"
                     }`}
                   >
                     <span
-                      className="w-9 h-9 rounded-xl flex items-center justify-center text-xl"
+                      className="w-7 h-7 rounded-lg flex items-center justify-center text-base"
                       style={{ background: bg }}
                     >
                       {c.icon || "📦"}
                     </span>
-                    <span className="text-[11px] leading-tight text-center font-medium text-gray-700 line-clamp-2 px-0.5">
+                    <span className="text-[10px] leading-tight text-center font-semibold text-gray-700 line-clamp-2 px-0.5">
                       {c.name}
                     </span>
                   </button>
