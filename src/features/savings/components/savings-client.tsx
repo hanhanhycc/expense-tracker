@@ -25,7 +25,7 @@ type Goal = {
   members: { memberId: string; name: string }[];
 };
 type Contribution = { id: string; memberId: string; memberName: string; amount: string; note: string | null; date: string };
-type GoalDetail = Goal & {
+type GoalDetail = Omit<Goal, "members"> & {
   contributions: Contribution[];
   members: { memberId: string; name: string; contributed: number }[];
 };

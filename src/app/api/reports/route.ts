@@ -72,6 +72,7 @@ export async function GET(req: Request) {
         type: true,
         visibility: true,
         createdById: true,
+        paidById: true,
         shares: { select: { memberId: true, amount: true } },
       },
     }),

@@ -282,11 +282,20 @@ export function HistoryClient({ currentMemberId }: { currentMemberId: string }) 
                       {t.account ? ` · ${t.account.icon ? `${t.account.icon} ` : ""}${t.account.name}` : ""}
                       {t.note ? ` · ${t.note}` : ""}
                     </p>
-                    {t.shares.length > 0 && (
-                      <p className="text-xs text-gray-400 truncate mt-0.5">
-                        {t.shares.map((s) => `${s.member.user.name}: ${formatVND(s.amount)}`).join(" • ")}
-                      </p>
-                    )}
+                    {t.visibility === "SHARED" && (() => {
+                      // Hiển thị phần của TỪNG thành viên, gồm cả payer (residual = amount - sum(shares)).
+                      const sumShares = t.shares.reduce((acc, s) => acc + Number(s.amount), 0);
+                      const payerResidual = Math.max(0, Number(t.amount) - sumShares);
+                      const parts: string[] = [];
+                      parts.push(`${t.paidBy.user.name}: ${formatVND(payerResidual)}`);
+                      for (const s of t.shares) {
+                        if (s.memberId === t.paidById) continue;
+                        parts.push(`${s.member.user.name}: ${formatVND(s.amount)}`);
+                      }
+                      return (
+                        <p className="text-xs text-gray-400 truncate mt-0.5">{parts.join(" • ")}</p>
+                      );
+                    })()}
                   </div>
                   <div className="text-right shrink-0">
                     <p className={`num font-extrabold ${t.type === "INCOME" ? "text-success-ink" : "text-ink-1"}`}>

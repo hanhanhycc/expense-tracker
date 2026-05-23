@@ -16,7 +16,8 @@
     "db:studio": "prisma studio",
     "test": "vitest run",
     "icons:gen": "node scripts/gen-icons.mjs",
-    "vapid:gen": "node scripts/gen-vapid.mjs"
+    "vapid:gen": "node scripts/gen-vapid.mjs",
+    "scan:tx": "tsx scripts/scan-transactions.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

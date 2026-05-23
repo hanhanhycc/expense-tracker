@@ -53,3 +53,5 @@ prisma/migrations/dev.db*
 .cache/
 .turbo/
 .vercel/
+tsconfig.tsbuildinfo
+package-lock.json

@@ -3,7 +3,7 @@ import { splitEqualForPayer, sumMoney, toDecimal, validateSplitCustom } from "@/
 import { Prisma, SplitType, Visibility } from "@prisma/client";
 import { deleteReceipt } from "@/lib/upload";
 import { notifyShareRecipients } from "@/lib/notify";
-import type { TransactionInput, TransactionFilter } from "./schema";
+import type { TransactionInput, TransactionFilter } from "../schema";
 
 async function getActorSnapshot(memberId: string): Promise<{ memberId: string; name: string } | null> {
   const m = await prisma.familyMember.findUnique({
@@ -99,23 +99,26 @@ export async function createTransaction(familyId: string, createdById: string, i
   };
 
   let sharesCreate: Prisma.TransactionShareCreateManyTransactionInput[] = [];
-  if (visibility === "SHARED" && sharedMemberIds.length > 0) {
+  // Payer KHÔNG bao giờ có share row riêng — payer giữ phần residual (xem CLAUDE.md §6).
+  const nonPayerSharedIds = sharedMemberIds.filter((mid) => mid !== paidById);
+  if (visibility === "SHARED" && nonPayerSharedIds.length > 0) {
     if (splitType === SplitType.EQUAL) {
-      sharesCreate = splitEqualForPayer(amount, paidById, sharedMemberIds).map((s) => ({
+      sharesCreate = splitEqualForPayer(amount, paidById, nonPayerSharedIds).map((s) => ({
         memberId: s.memberId,
         amount: new Prisma.Decimal(s.amount),
       }));
     } else if (splitType === SplitType.CUSTOM) {
-      if (!validateSplitCustom(amount, customShares.map((c) => c.amount))) {
+      const nonPayerCustom = customShares.filter((c) => c.memberId !== paidById);
+      if (!validateSplitCustom(amount, nonPayerCustom.map((c) => c.amount))) {
         throw new Error("Tổng các phần chia phải bằng số tiền giao dịch");
       }
-      sharesCreate = customShares.map((c) => ({
+      sharesCreate = nonPayerCustom.map((c) => ({
         memberId: c.memberId,
         amount: new Prisma.Decimal(c.amount),
       }));
     } else {
-      // NONE -> mark mọi member trong shared list, share = 0 (chỉ visibility)
-      sharesCreate = sharedMemberIds.map((mid) => ({
+      // NONE -> mark các member non-payer trong shared list, share = 0 (chỉ visibility)
+      sharesCreate = nonPayerSharedIds.map((mid) => ({
         memberId: mid,
         amount: new Prisma.Decimal(0),
       }));
@@ -156,19 +159,21 @@ export async function updateTransaction(familyId: string, memberId: string, id: 
   await prisma.transactionShare.deleteMany({ where: { transactionId: id } });
 
   let sharesCreate: Prisma.TransactionShareCreateManyTransactionInput[] = [];
-  if (input.visibility === "SHARED" && input.sharedMemberIds.length > 0) {
+  const nonPayerSharedIds = input.sharedMemberIds.filter((mid) => mid !== input.paidById);
+  if (input.visibility === "SHARED" && nonPayerSharedIds.length > 0) {
     if (input.splitType === SplitType.EQUAL) {
-      sharesCreate = splitEqualForPayer(input.amount, input.paidById, input.sharedMemberIds).map((s) => ({
+      sharesCreate = splitEqualForPayer(input.amount, input.paidById, nonPayerSharedIds).map((s) => ({
         memberId: s.memberId,
         amount: new Prisma.Decimal(s.amount),
       }));
     } else if (input.splitType === SplitType.CUSTOM) {
-      if (!validateSplitCustom(input.amount, input.customShares.map((c) => c.amount))) {
+      const nonPayerCustom = input.customShares.filter((c) => c.memberId !== input.paidById);
+      if (!validateSplitCustom(input.amount, nonPayerCustom.map((c) => c.amount))) {
         throw new Error("Tổng các phần chia phải bằng số tiền giao dịch");
       }
-      sharesCreate = input.customShares.map((c) => ({ memberId: c.memberId, amount: new Prisma.Decimal(c.amount) }));
+      sharesCreate = nonPayerCustom.map((c) => ({ memberId: c.memberId, amount: new Prisma.Decimal(c.amount) }));
     } else {
-      sharesCreate = input.sharedMemberIds.map((mid) => ({ memberId: mid, amount: new Prisma.Decimal(0) }));
+      sharesCreate = nonPayerSharedIds.map((mid) => ({ memberId: mid, amount: new Prisma.Decimal(0) }));
     }
   }
 
