@@ -91,7 +91,14 @@ export function TopBar() {
                 <MenuLink href="/settings/members" onClick={() => setOpen(false)}>👥 Thành viên</MenuLink>
                 <MenuLink href="/settings/categories" onClick={() => setOpen(false)}>🏷 Danh mục</MenuLink>
                 <button
-                  onClick={() => { setOpen(false); signOut({ callbackUrl: "/login" }); }}
+                  onClick={async () => {
+                    setOpen(false);
+                    // Dùng redirect:false + window.location để giữ nguyên origin trình duyệt
+                    // (vd: https://track.thachhan.net) thay vì để NextAuth server resolve URL,
+                    // tránh redirect về AUTH_URL/LAN IP khi truy cập qua reverse proxy.
+                    await signOut({ redirect: false });
+                    window.location.href = "/login";
+                  }}
                   className="block w-full text-left px-3 py-2 hover:bg-white/30 dark:hover:bg-white/10 text-danger-ink"
                 >
                   Đăng xuất
