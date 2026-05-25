@@ -90,7 +90,8 @@ export function HistoryClient({ currentMemberId }: { currentMemberId: string }) 
     requestAnimationFrame(() => {
       document.getElementById(`tx-${txId}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
     });
-    const timer = setTimeout(() => setHighlightId(null), 3000);
+    // 6s để người dùng kịp nhận ra giao dịch được chia sẻ.
+    const timer = setTimeout(() => setHighlightId(null), 6000);
     return () => clearTimeout(timer);
   }, [searchParams, items, loading]);
 
@@ -315,7 +316,7 @@ export function HistoryClient({ currentMemberId }: { currentMemberId: string }) 
                 <li
                   key={t.id}
                   id={`tx-${t.id}`}
-                  className={highlight ? "bg-rose-50 ring-2 ring-primary/50 transition" : "transition"}
+                  className={highlight ? "tx-highlight" : "transition"}
                 >
                   {isOwner ? (
                     <SwipeActions
