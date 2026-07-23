@@ -2,9 +2,9 @@ import { prisma } from "@/lib/db";
 import { CategoryKind, GoalStatus, Prisma, SplitType, Visibility } from "@prisma/client";
 import { logActivity } from "@/lib/activity-log";
 import { notifyShareRecipients } from "@/lib/notify";
-import { formatVND, toDecimal } from "@/lib/money";
-import { buildSettlementShares } from "./settlement";
-import { canManageGoal } from "./permissions";
+import { formatVND, sumMoney } from "@/lib/money";
+import { buildSettlement, contributedByMember } from "./settlement";
+import { canSettleGoal } from "./permissions";
 
 export const SETTLE_CATEGORY_NAME = "Tất toán tiết kiệm";
 
@@ -44,45 +44,62 @@ export type SettleResult =
   | { ok: false; status: number; error: string };
 
 /**
- * Tất toán mục tiêu tiết kiệm:
- * - Tạo 1 giao dịch THU NHẬP = tổng đã đóng góp (ghi có vào dashboard).
- * - SHARED: chia CUSTOM theo đúng phần góp của từng member (residual model —
- *   người tất toán là payer, giữ phần góp của chính mình).
- * - Khoá mục tiêu: status = SETTLED.
+ * Tất toán mục tiêu tiết kiệm (toàn bộ hoặc 1 phần):
+ * - Sổ CHUNG: mọi thành viên được chia sổ đều tất toán được.
+ * - Người tất toán chỉ nhập 1 số tiền — hệ thống chia pro-rata theo phần đã
+ *   góp còn lại của từng người.
+ * - Tạo 1 giao dịch THU NHẬP = số tiền rút (ghi có vào dashboard), chia CUSTOM
+ *   theo residual model (người tất toán là payer).
+ * - Rút 1 phần: ghi dòng đóng góp ÂM cho từng member, sổ tiếp tục chạy.
+ * - Rút sạch toàn bộ: khoá sổ (status = SETTLED).
+ * - Noti gửi tới người cùng góp sổ (trừ người tất toán).
  */
 export async function settleSavingGoal(args: {
   familyId: string;
   goalId: string;
   actor: { userId: string; memberId: string; name: string; role: string };
+  /** Số tiền muốn tất toán. Bỏ trống = rút toàn bộ phần còn lại. */
+  amount?: number;
 }): Promise<SettleResult> {
   const { familyId, goalId, actor } = args;
 
   const goal = await prisma.savingGoal.findFirst({
     where: { id: goalId, familyId, deletedAt: null },
-    include: { contributions: { select: { memberId: true, amount: true } } },
+    include: {
+      contributions: { select: { memberId: true, amount: true } },
+      members: { select: { memberId: true } },
+    },
   });
   if (!goal) return { ok: false, status: 404, error: "Không tìm thấy mục tiêu" };
 
-  if (!canManageGoal({ user: { role: actor.role, memberId: actor.memberId } }, goal)) {
+  const memberIds = goal.members.map((m) => m.memberId);
+  if (!canSettleGoal({ user: { role: actor.role, memberId: actor.memberId } }, { ...goal, memberIds })) {
     return { ok: false, status: 403, error: "Bạn không có quyền tất toán mục tiêu này" };
   }
   if (goal.status === GoalStatus.SETTLED) {
     return { ok: false, status: 400, error: "Mục tiêu đã được tất toán trước đó" };
   }
 
-  // PERSONAL: chỉ creator được tất toán (đã check ở canManageGoal) → payer = creator.
+  // PERSONAL: chỉ creator được tất toán (đã check ở canSettleGoal) → payer = creator.
   const payerId = goal.visibility === Visibility.PERSONAL ? goal.createdById : actor.memberId;
-  const { total, shares } = buildSettlementShares(
-    goal.contributions.map((c) => ({ memberId: c.memberId, amount: c.amount.toString() })),
-    payerId,
-  );
-  if (!toDecimal(total).greaterThan(0)) {
-    return { ok: false, status: 400, error: "Chưa có đóng góp nào để tất toán" };
+  const contributions = goal.contributions.map((c) => ({ memberId: c.memberId, amount: c.amount.toString() }));
+  // Không truyền amount → rút toàn bộ phần còn lại.
+  const remainingTotal = sumMoney(contributedByMember(contributions).map((c) => c.amount)).toString();
+  const built = buildSettlement(contributions, payerId, args.amount ?? remainingTotal);
+
+  if (!built.ok) {
+    if (built.error === "EXCEEDS_TOTAL") {
+      return { ok: false, status: 400, error: "Số tiền tất toán vượt quá số dư còn lại của sổ" };
+    }
+    return { ok: false, status: 400, error: "Chưa có số tiền nào để tất toán" };
   }
+  const { total, shares, withdrawalByMember, isFull } = built;
 
   const categoryId = await getOrCreateSettleCategory(familyId);
   const today = new Date(new Date().toISOString().slice(0, 10) + "T00:00:00.000Z");
-  const note = `Tất toán sổ tiết kiệm "${goal.name}"`;
+  const note = isFull
+    ? `Tất toán sổ tiết kiệm "${goal.name}"`
+    : `Tất toán 1 phần sổ tiết kiệm "${goal.name}"`;
 
   let tx: { id: string; date: Date };
   try {
@@ -105,12 +122,25 @@ export async function settleSavingGoal(args: {
         },
         select: { id: true, date: true },
       });
-      // Guard chống double-settle khi 2 request đua nhau: chỉ update khi chưa SETTLED.
-      const updated = await db.savingGoal.updateMany({
-        where: { id: goalId, status: { not: GoalStatus.SETTLED }, deletedAt: null },
-        data: { status: GoalStatus.SETTLED, settledAt: new Date(), settledTxId: created.id },
-      });
-      if (updated.count === 0) throw new Error("ALREADY_SETTLED");
+      if (isFull) {
+        // Guard chống double-settle khi 2 request đua nhau: chỉ update khi chưa SETTLED.
+        const updated = await db.savingGoal.updateMany({
+          where: { id: goalId, status: { not: GoalStatus.SETTLED }, deletedAt: null },
+          data: { status: GoalStatus.SETTLED, settledAt: new Date(), settledTxId: created.id },
+        });
+        if (updated.count === 0) throw new Error("ALREADY_SETTLED");
+      } else {
+        // Rút 1 phần: ghi dòng đóng góp ÂM để trừ phần còn lại của từng member.
+        await db.savingContribution.createMany({
+          data: withdrawalByMember.map((w) => ({
+            savingGoalId: goalId,
+            memberId: w.memberId,
+            amount: new Prisma.Decimal(w.amount).negated(),
+            date: today,
+            note,
+          })),
+        });
+      }
       return created;
     });
   } catch (e) {
@@ -127,7 +157,9 @@ export async function settleSavingGoal(args: {
     action: "SETTLE",
     entity: "saving_goal",
     entityId: goalId,
-    summary: `Tất toán mục tiêu "${goal.name}" — ${formatVND(total)} ghi có vào thu nhập`,
+    summary: isFull
+      ? `Tất toán mục tiêu "${goal.name}" — ${formatVND(total)} ghi có vào thu nhập`
+      : `Tất toán 1 phần mục tiêu "${goal.name}" — ${formatVND(total)} ghi có vào thu nhập`,
     metadata: { transactionId: tx.id },
   });
 

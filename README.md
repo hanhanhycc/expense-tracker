@@ -51,7 +51,7 @@
 - Tạo goal: tên, số tiền mục tiêu, mô tả, danh sách thành viên, trạng thái (active / completed / archived / settled).
 - Mỗi thành viên đóng góp nhiều lần (số tiền, ghi chú, ngày).
 - Hiển thị: target — đã góp — còn lại — % tiến độ — đóng góp theo từng thành viên — lịch sử.
-- **Tất toán**: chốt sổ tiết kiệm — toàn bộ tiền đã góp được ghi có thành 1 giao dịch thu nhập (chia đúng phần từng người), mục tiêu khoá lại.
+- **Tất toán**: chốt sổ tiết kiệm — sổ chung thì thành viên nào được chia sổ cũng tất toán được. Chỉ cần nhập số tiền muốn rút (hoặc Tối đa), hệ thống ghi có thành 1 giao dịch thu nhập và chia theo tỷ lệ phần đã góp của từng người, đồng thời gửi thông báo cho người cùng góp. Rút toàn bộ → khoá sổ; rút 1 phần → sổ tiếp tục với phần còn lại.
 
 ### 📊 Dashboard
 - Tổng thu / tổng chi tháng này.

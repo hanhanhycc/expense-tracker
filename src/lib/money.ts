@@ -1,5 +1,9 @@
 import Decimal from "decimal.js";
 
+// Tiền Decimal(18,2): phép chia pro-rata cần precision cao hơn mặc định (20)
+// để nhân/chia số lớn không mất chính xác.
+Decimal.set({ precision: 50 });
+
 export type Money = Decimal | number | string;
 
 export function toDecimal(v: Money): Decimal {
