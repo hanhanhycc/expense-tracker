@@ -48,9 +48,10 @@
 - Admin tự thêm/sửa/xoá.
 
 ### 🎯 Mục tiêu tiết kiệm chung
-- Tạo goal: tên, số tiền mục tiêu, mô tả, danh sách thành viên, trạng thái (active / completed / archived).
+- Tạo goal: tên, số tiền mục tiêu, mô tả, danh sách thành viên, trạng thái (active / completed / archived / settled).
 - Mỗi thành viên đóng góp nhiều lần (số tiền, ghi chú, ngày).
 - Hiển thị: target — đã góp — còn lại — % tiến độ — đóng góp theo từng thành viên — lịch sử.
+- **Tất toán**: chốt sổ tiết kiệm — toàn bộ tiền đã góp được ghi có thành 1 giao dịch thu nhập (chia đúng phần từng người), mục tiêu khoá lại.
 
 ### 📊 Dashboard
 - Tổng thu / tổng chi tháng này.

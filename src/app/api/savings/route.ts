@@ -48,6 +48,7 @@ export async function GET() {
       status: g.status,
       visibility: g.visibility,
       createdById: g.createdById,
+      settledAt: g.settledAt ? g.settledAt.toISOString() : null,
       targetAmount: g.targetAmount.toString(),
       targetDate: g.targetDate ? g.targetDate.toISOString().slice(0, 10) : null,
       createdAt: g.createdAt.toISOString(),

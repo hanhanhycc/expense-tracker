@@ -46,6 +46,7 @@ enum GoalStatus {
   ACTIVE
   COMPLETED
   ARCHIVED
+  SETTLED // đã tất toán — tiền đã ghi có về thu nhập
 }
 
 enum BudgetScope {
@@ -260,6 +261,8 @@ model SavingGoal {
   status       GoalStatus @default(ACTIVE)
   visibility   Visibility @default(SHARED)
   createdById  String
+  settledAt    DateTime?  // thời điểm tất toán
+  settledTxId  String?    // id giao dịch thu nhập ghi có khi tất toán (không FK — tx có thể bị soft delete)
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
   deletedAt    DateTime?

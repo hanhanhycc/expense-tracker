@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { Prisma, Visibility } from "@prisma/client";
+import { Prisma, GoalStatus, Visibility } from "@prisma/client";
 import { logActivity } from "@/lib/activity-log";
 
 const patchSchema = z.object({
@@ -35,7 +35,7 @@ function canManageContribution(
 async function loadContext(familyId: string, goalId: string, cid: string) {
   const goal = await prisma.savingGoal.findFirst({
     where: { id: goalId, familyId, deletedAt: null },
-    select: { id: true, name: true, createdById: true, visibility: true },
+    select: { id: true, name: true, createdById: true, visibility: true, status: true },
   });
   if (!goal) return { error: "Không tìm thấy mục tiêu" as const };
   const c = await prisma.savingContribution.findFirst({
@@ -56,6 +56,9 @@ export async function PATCH(
 
   const ctx = await loadContext(session.user.familyId, id, cid);
   if ("error" in ctx) return NextResponse.json({ error: ctx.error }, { status: 404 });
+  if (ctx.goal.status === GoalStatus.SETTLED) {
+    return NextResponse.json({ error: "Mục tiêu đã tất toán, không thể sửa đóng góp" }, { status: 400 });
+  }
   if (!canManageContribution(session, ctx.goal, ctx.contribution.memberId)) {
     return NextResponse.json({ error: "Bạn không có quyền sửa đóng góp này" }, { status: 403 });
   }
@@ -112,6 +115,9 @@ export async function DELETE(
 
   const ctx = await loadContext(session.user.familyId, id, cid);
   if ("error" in ctx) return NextResponse.json({ error: ctx.error }, { status: 404 });
+  if (ctx.goal.status === GoalStatus.SETTLED) {
+    return NextResponse.json({ error: "Mục tiêu đã tất toán, không thể xoá đóng góp" }, { status: 400 });
+  }
   if (!canManageContribution(session, ctx.goal, ctx.contribution.memberId)) {
     return NextResponse.json({ error: "Bạn không có quyền xoá đóng góp này" }, { status: 403 });
   }

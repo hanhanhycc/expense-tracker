@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { Prisma, Visibility } from "@prisma/client";
+import { Prisma, GoalStatus, Visibility } from "@prisma/client";
 import { logActivity } from "@/lib/activity-log";
 
 const schema = z.object({
@@ -22,6 +22,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     include: { members: { select: { memberId: true } } },
   });
   if (!goal) return NextResponse.json({ error: "Không tìm thấy mục tiêu" }, { status: 404 });
+  if (goal.status === GoalStatus.SETTLED) {
+    return NextResponse.json({ error: "Mục tiêu đã tất toán, không thể thêm đóng góp" }, { status: 400 });
+  }
 
   // Kiểm tra quyền xem
   if (goal.visibility === Visibility.PERSONAL && goal.createdById !== session.user.memberId) {
