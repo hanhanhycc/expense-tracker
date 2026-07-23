@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildWithdrawalSettlement, contributedByMember } from "@/features/savings/server/settlement";
+import { buildSettlement, contributedByMember } from "@/features/savings/server/settlement";
 
 describe("contributedByMember", () => {
   it("gộp nhiều lượt góp của cùng 1 member", () => {
@@ -31,76 +31,89 @@ describe("contributedByMember", () => {
   });
 });
 
-describe("buildWithdrawalSettlement", () => {
+describe("buildSettlement (pro-rata)", () => {
   const contributions = [
     { memberId: "A", amount: "2000000" },
     { memberId: "B", amount: "1000000" },
     { memberId: "C", amount: "500000" },
   ];
 
-  it("rút toàn bộ → isFull, payer không có share row (residual model)", () => {
-    const r = buildWithdrawalSettlement(contributions, "A", [
+  it("rút toàn bộ → isFull, chia đúng phần từng người, payer không có share row", () => {
+    const r = buildSettlement(contributions, "A", "3500000");
+    if (!r.ok) throw new Error("expected ok");
+    expect(r.total).toBe("3500000");
+    expect(r.isFull).toBe(true);
+    expect(r.withdrawalByMember).toEqual([
       { memberId: "A", amount: "2000000" },
       { memberId: "B", amount: "1000000" },
       { memberId: "C", amount: "500000" },
     ]);
-    if (!r.ok) throw new Error("expected ok");
-    expect(r.total).toBe("3500000");
-    expect(r.isFull).toBe(true);
     expect(r.shares).toEqual([
       { memberId: "B", amount: "1000000" },
       { memberId: "C", amount: "500000" },
     ]);
-    // residual của payer = total - sum(shares) = đúng phần A rút
+    // residual của payer = total - sum(shares) = đúng phần A
     const sumShares = r.shares.reduce((s, x) => s + Number(x.amount), 0);
     expect(Number(r.total) - sumShares).toBe(2000000);
   });
 
-  it("rút 1 phần → isFull=false, withdrawalByMember đủ mọi người kể cả payer", () => {
-    const r = buildWithdrawalSettlement(contributions, "A", [
-      { memberId: "A", amount: "500000" },
-      { memberId: "B", amount: "300000" },
-    ]);
+  it("rút 1 phần → chia theo tỷ lệ phần đã góp, isFull=false", () => {
+    // Rút 700.000 trên tổng 3.500.000 → tỷ lệ 1/5: A 400k, B 200k, C 100k
+    const r = buildSettlement(contributions, "A", 700000);
     if (!r.ok) throw new Error("expected ok");
-    expect(r.total).toBe("800000");
     expect(r.isFull).toBe(false);
-    expect(r.shares).toEqual([{ memberId: "B", amount: "300000" }]);
     expect(r.withdrawalByMember).toEqual([
-      { memberId: "A", amount: "500000" },
-      { memberId: "B", amount: "300000" },
+      { memberId: "A", amount: "400000" },
+      { memberId: "B", amount: "200000" },
+      { memberId: "C", amount: "100000" },
+    ]);
+    expect(r.shares).toEqual([
+      { memberId: "B", amount: "200000" },
+      { memberId: "C", amount: "100000" },
     ]);
   });
 
-  it("rút quá phần đã góp → EXCEEDS_CONTRIBUTED kèm memberId", () => {
-    const r = buildWithdrawalSettlement(contributions, "A", [{ memberId: "B", amount: "1000001" }]);
-    expect(r).toEqual({ ok: false, error: "EXCEEDS_CONTRIBUTED", memberId: "B" });
+  it("tổng các phần LUÔN = amount kể cả khi chia có dư (largest remainder)", () => {
+    // 100 chia tỷ lệ 1:1:1 trên 3 người góp đều → 34/33/33
+    const even = [
+      { memberId: "A", amount: "1000" },
+      { memberId: "B", amount: "1000" },
+      { memberId: "C", amount: "1000" },
+    ];
+    const r = buildSettlement(even, "A", 100);
+    if (!r.ok) throw new Error("expected ok");
+    const sum = r.withdrawalByMember.reduce((s, x) => s + Number(x.amount), 0);
+    expect(sum).toBe(100);
+    // không ai bị rút quá phần đã góp
+    for (const w of r.withdrawalByMember) expect(Number(w.amount)).toBeLessThanOrEqual(1000);
   });
 
-  it("member chưa từng góp mà rút → EXCEEDS_CONTRIBUTED", () => {
-    const r = buildWithdrawalSettlement(contributions, "A", [{ memberId: "X", amount: "1" }]);
-    expect(r).toEqual({ ok: false, error: "EXCEEDS_CONTRIBUTED", memberId: "X" });
+  it("payer không góp đồng nào → shares = toàn bộ, residual payer = 0", () => {
+    const r = buildSettlement(contributions, "X", "3500000");
+    if (!r.ok) throw new Error("expected ok");
+    const sumShares = r.shares.reduce((s, x) => s + Number(x.amount), 0);
+    expect(sumShares).toBe(3500000);
+    expect(r.withdrawalByMember.length).toBe(3);
   });
 
-  it("không rút đồng nào (rỗng hoặc toàn 0) → EMPTY", () => {
-    expect(buildWithdrawalSettlement(contributions, "A", [])).toEqual({ ok: false, error: "EMPTY" });
-    expect(buildWithdrawalSettlement(contributions, "A", [{ memberId: "B", amount: "0" }])).toEqual({
-      ok: false,
-      error: "EMPTY",
-    });
+  it("rút quá số dư sổ → EXCEEDS_TOTAL", () => {
+    expect(buildSettlement(contributions, "A", "3500001")).toEqual({ ok: false, error: "EXCEEDS_TOTAL" });
   });
 
-  it("tôn trọng dòng âm: chỉ được rút phần còn lại", () => {
+  it("không nhập tiền hoặc 0 → EMPTY", () => {
+    expect(buildSettlement(contributions, "A", 0)).toEqual({ ok: false, error: "EMPTY" });
+    expect(buildSettlement([], "A", 100)).toEqual({ ok: false, error: "EXCEEDS_TOTAL" });
+  });
+
+  it("tôn trọng dòng âm: số dư còn lại mới là mức tối đa", () => {
     const withNegative = [...contributions, { memberId: "B", amount: "-800000" }];
-    // B chỉ còn 200000
-    expect(buildWithdrawalSettlement(withNegative, "A", [{ memberId: "B", amount: "200001" }])).toEqual({
-      ok: false,
-      error: "EXCEEDS_CONTRIBUTED",
-      memberId: "B",
-    });
-    const ok = buildWithdrawalSettlement(withNegative, "A", [{ memberId: "B", amount: "200000" }]);
-    if (!ok.ok) throw new Error("expected ok");
-    expect(ok.total).toBe("200000");
-    expect(ok.isFull).toBe(false);
+    // tổng còn lại = 2.700.000
+    expect(buildSettlement(withNegative, "A", "2700001")).toEqual({ ok: false, error: "EXCEEDS_TOTAL" });
+    const r = buildSettlement(withNegative, "A", "2700000");
+    if (!r.ok) throw new Error("expected ok");
+    expect(r.isFull).toBe(true);
+    // B chỉ còn 200k → phần rút của B đúng 200k
+    expect(r.withdrawalByMember.find((w) => w.memberId === "B")?.amount).toBe("200000");
   });
 
   it("rút sạch phần còn lại sau khi đã rút 1 phần trước đó → isFull", () => {
@@ -109,23 +122,23 @@ describe("buildWithdrawalSettlement", () => {
       { memberId: "A", amount: "-1500000" },
       { memberId: "B", amount: "1000000" },
     ];
-    const r = buildWithdrawalSettlement(withNegative, "A", [
+    const r = buildSettlement(withNegative, "A", 1500000);
+    if (!r.ok) throw new Error("expected ok");
+    expect(r.isFull).toBe(true);
+    expect(r.withdrawalByMember).toEqual([
       { memberId: "A", amount: "500000" },
       { memberId: "B", amount: "1000000" },
     ]);
-    if (!r.ok) throw new Error("expected ok");
-    expect(r.isFull).toBe(true);
-    expect(r.total).toBe("1500000");
   });
 
-  it("gộp nhiều dòng rút của cùng member + cộng Decimal chính xác với number input", () => {
-    const r = buildWithdrawalSettlement(contributions, "A", [
-      { memberId: "A", amount: 1000001 },
-      { memberId: "A", amount: 999999 },
-    ]);
+  it("số lớn vẫn chia chính xác bằng Decimal (không lệch 1 đồng)", () => {
+    const big = [
+      { memberId: "A", amount: "999999999999.99" },
+      { memberId: "B", amount: "888888888888.88" },
+    ];
+    const r = buildSettlement(big, "A", "1000000000000");
     if (!r.ok) throw new Error("expected ok");
-    expect(r.total).toBe("2000000");
-    expect(r.withdrawalByMember).toEqual([{ memberId: "A", amount: "2000000" }]);
-    expect(r.shares).toEqual([]);
+    const sum = r.withdrawalByMember.reduce((s, x) => Number(x.amount) + s, 0);
+    expect(Math.round(sum)).toBe(1000000000000);
   });
 });

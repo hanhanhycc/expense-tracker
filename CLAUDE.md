@@ -48,7 +48,7 @@
 - Family workspace + Members + Roles (OWNER/ADMIN/MEMBER) + Invite code.
 - Transactions: income/expense, personal/shared, split none/equal/custom, paid_by.
 - Categories: CRUD, có default seed.
-- Saving Goals: CRUD + Contributions của từng member + **Tất toán** toàn bộ hoặc 1 phần (nhập số rút từng người → ghi có về thu nhập chia đúng phần; rút sạch → khoá goal, rút 1 phần → ghi dòng đóng góp âm, goal tiếp tục).
+- Saving Goals: CRUD + Contributions của từng member + **Tất toán** toàn bộ hoặc 1 phần (sổ chung: ai được chia sổ cũng tất toán được; nhập 1 số tiền → chia pro-rata theo phần đã góp, ghi có về thu nhập + noti người cùng góp; rút sạch → khoá goal, rút 1 phần → ghi dòng đóng góp âm, goal tiếp tục).
 - Dashboard: tháng hiện tại.
 - History: filter + search + edit/delete.
 - Reports: 5 biểu đồ liệt kê trong README.

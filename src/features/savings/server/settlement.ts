@@ -1,3 +1,4 @@
+import Decimal from "decimal.js";
 import { toDecimal } from "@/lib/money";
 
 export type SettlementShare = { memberId: string; amount: string };
@@ -21,7 +22,7 @@ export function contributedByMember(
   return out;
 }
 
-export type WithdrawalSettlement =
+export type Settlement =
   | {
       ok: true;
       /** Tổng tiền rút = số tiền giao dịch thu nhập. */
@@ -33,42 +34,50 @@ export type WithdrawalSettlement =
       /** Phần rút của TỪNG member (kể cả payer) — dùng ghi dòng đóng góp âm. */
       withdrawalByMember: SettlementShare[];
     }
-  | { ok: false; error: "EXCEEDS_CONTRIBUTED" | "EMPTY"; memberId?: string };
+  | { ok: false; error: "EXCEEDS_TOTAL" | "EMPTY" };
 
 /**
- * Tất toán theo số tiền tự nhập cho từng member.
- * Validate: phần rút mỗi người ≤ phần còn lại họ đã góp; tổng > 0.
+ * Tất toán theo 1 số tiền tổng: chia pro-rata theo phần còn lại của từng người
+ * đã góp (largest remainder — phần dư làm tròn dồn cho người có phần lẻ lớn
+ * nhất, tie-break theo phần góp lớn hơn). Tổng các phần LUÔN = amount.
  */
-export function buildWithdrawalSettlement(
+export function buildSettlement(
   contributions: { memberId: string; amount: string | number }[],
   payerId: string,
-  withdrawals: { memberId: string; amount: string | number }[],
-): WithdrawalSettlement {
-  const contributed = new Map(contributedByMember(contributions).map((c) => [c.memberId, toDecimal(c.amount)]));
+  amount: string | number,
+): Settlement {
+  const remaining = contributedByMember(contributions);
+  const grandTotal = remaining.reduce((s, c) => s.plus(toDecimal(c.amount)), toDecimal(0));
+  const total = toDecimal(amount).floor();
 
-  const wanted = new Map<string, ReturnType<typeof toDecimal>>();
-  for (const w of withdrawals) {
-    const amt = toDecimal(w.amount);
-    if (amt.lessThanOrEqualTo(0)) continue;
-    const cur = wanted.get(w.memberId) ?? toDecimal(0);
-    wanted.set(w.memberId, cur.plus(amt));
-  }
-
-  let total = toDecimal(0);
-  for (const [memberId, amount] of wanted) {
-    const max = contributed.get(memberId) ?? toDecimal(0);
-    if (amount.greaterThan(max)) return { ok: false, error: "EXCEEDS_CONTRIBUTED", memberId };
-    total = total.plus(amount);
-  }
   if (!total.greaterThan(0)) return { ok: false, error: "EMPTY" };
+  if (total.greaterThan(grandTotal)) return { ok: false, error: "EXCEEDS_TOTAL" };
 
-  const grandTotal = Array.from(contributed.values()).reduce((s, x) => s.plus(x), toDecimal(0));
+  // Pro-rata làm tròn xuống theo đồng, sau đó phân phối phần dư (largest remainder).
+  const rows = remaining.map((c) => {
+    const contributed = toDecimal(c.amount);
+    const raw = total.times(contributed).div(grandTotal);
+    return { memberId: c.memberId, contributed, part: raw.floor(), frac: raw.minus(raw.floor()) };
+  });
+  let leftover = total.minus(rows.reduce((s, r) => s.plus(r.part), toDecimal(0)));
+  const order = [...rows].sort((a, b) => {
+    const byFrac = b.frac.comparedTo(a.frac);
+    if (byFrac !== 0) return byFrac;
+    return b.contributed.comparedTo(a.contributed);
+  });
+  for (const r of order) {
+    if (!leftover.greaterThan(0)) break;
+    const add = Decimal.min(leftover, r.contributed.minus(r.part));
+    r.part = r.part.plus(add);
+    leftover = leftover.minus(add);
+  }
+
   const shares: SettlementShare[] = [];
   const withdrawalByMember: SettlementShare[] = [];
-  for (const [memberId, amount] of wanted) {
-    withdrawalByMember.push({ memberId, amount: amount.toString() });
-    if (memberId !== payerId) shares.push({ memberId, amount: amount.toString() });
+  for (const r of rows) {
+    if (!r.part.greaterThan(0)) continue;
+    withdrawalByMember.push({ memberId: r.memberId, amount: r.part.toString() });
+    if (r.memberId !== payerId) shares.push({ memberId: r.memberId, amount: r.part.toString() });
   }
   return { ok: true, total: total.toString(), isFull: total.equals(grandTotal), shares, withdrawalByMember };
 }
-

@@ -2,9 +2,9 @@ import { prisma } from "@/lib/db";
 import { CategoryKind, GoalStatus, Prisma, SplitType, Visibility } from "@prisma/client";
 import { logActivity } from "@/lib/activity-log";
 import { notifyShareRecipients } from "@/lib/notify";
-import { formatVND } from "@/lib/money";
-import { buildWithdrawalSettlement, contributedByMember } from "./settlement";
-import { canManageGoal } from "./permissions";
+import { formatVND, sumMoney } from "@/lib/money";
+import { buildSettlement, contributedByMember } from "./settlement";
+import { canSettleGoal } from "./permissions";
 
 export const SETTLE_CATEGORY_NAME = "Tất toán tiết kiệm";
 
@@ -45,51 +45,51 @@ export type SettleResult =
 
 /**
  * Tất toán mục tiêu tiết kiệm (toàn bộ hoặc 1 phần):
- * - Tạo 1 giao dịch THU NHẬP = tổng tiền rút (ghi có vào dashboard).
- * - SHARED: chia CUSTOM theo số tiền rút của từng member (residual model —
- *   người tất toán là payer, giữ phần rút của chính mình).
+ * - Sổ CHUNG: mọi thành viên được chia sổ đều tất toán được.
+ * - Người tất toán chỉ nhập 1 số tiền — hệ thống chia pro-rata theo phần đã
+ *   góp còn lại của từng người.
+ * - Tạo 1 giao dịch THU NHẬP = số tiền rút (ghi có vào dashboard), chia CUSTOM
+ *   theo residual model (người tất toán là payer).
  * - Rút 1 phần: ghi dòng đóng góp ÂM cho từng member, sổ tiếp tục chạy.
  * - Rút sạch toàn bộ: khoá sổ (status = SETTLED).
+ * - Noti gửi tới người cùng góp sổ (trừ người tất toán).
  */
 export async function settleSavingGoal(args: {
   familyId: string;
   goalId: string;
   actor: { userId: string; memberId: string; name: string; role: string };
-  /** Số tiền rút theo từng member. Bỏ trống = rút toàn bộ phần còn lại của mọi người. */
-  withdrawals?: { memberId: string; amount: number }[];
+  /** Số tiền muốn tất toán. Bỏ trống = rút toàn bộ phần còn lại. */
+  amount?: number;
 }): Promise<SettleResult> {
   const { familyId, goalId, actor } = args;
 
   const goal = await prisma.savingGoal.findFirst({
     where: { id: goalId, familyId, deletedAt: null },
-    include: { contributions: { select: { memberId: true, amount: true } } },
+    include: {
+      contributions: { select: { memberId: true, amount: true } },
+      members: { select: { memberId: true } },
+    },
   });
   if (!goal) return { ok: false, status: 404, error: "Không tìm thấy mục tiêu" };
 
-  if (!canManageGoal({ user: { role: actor.role, memberId: actor.memberId } }, goal)) {
+  const memberIds = goal.members.map((m) => m.memberId);
+  if (!canSettleGoal({ user: { role: actor.role, memberId: actor.memberId } }, { ...goal, memberIds })) {
     return { ok: false, status: 403, error: "Bạn không có quyền tất toán mục tiêu này" };
   }
   if (goal.status === GoalStatus.SETTLED) {
     return { ok: false, status: 400, error: "Mục tiêu đã được tất toán trước đó" };
   }
 
-  // PERSONAL: chỉ creator được tất toán (đã check ở canManageGoal) → payer = creator.
+  // PERSONAL: chỉ creator được tất toán (đã check ở canSettleGoal) → payer = creator.
   const payerId = goal.visibility === Visibility.PERSONAL ? goal.createdById : actor.memberId;
   const contributions = goal.contributions.map((c) => ({ memberId: c.memberId, amount: c.amount.toString() }));
-  // Không truyền withdrawals → rút toàn bộ phần còn lại của từng member.
-  const wanted = args.withdrawals ?? contributedByMember(contributions);
-  const built = buildWithdrawalSettlement(contributions, payerId, wanted);
+  // Không truyền amount → rút toàn bộ phần còn lại.
+  const remainingTotal = sumMoney(contributedByMember(contributions).map((c) => c.amount)).toString();
+  const built = buildSettlement(contributions, payerId, args.amount ?? remainingTotal);
 
   if (!built.ok) {
-    if (built.error === "EXCEEDS_CONTRIBUTED") {
-      const m = built.memberId
-        ? await prisma.familyMember.findUnique({ where: { id: built.memberId }, select: { user: { select: { name: true } } } })
-        : null;
-      return {
-        ok: false,
-        status: 400,
-        error: `Số tiền rút của ${m?.user.name ?? "thành viên"} vượt quá phần đã góp còn lại`,
-      };
+    if (built.error === "EXCEEDS_TOTAL") {
+      return { ok: false, status: 400, error: "Số tiền tất toán vượt quá số dư còn lại của sổ" };
     }
     return { ok: false, status: 400, error: "Chưa có số tiền nào để tất toán" };
   }

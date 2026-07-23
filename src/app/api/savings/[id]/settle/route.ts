@@ -5,11 +5,8 @@ import { settleSavingGoal } from "@/features/savings/server/settle-service";
 
 const settleSchema = z
   .object({
-    // Bỏ trống = tất toán toàn bộ. Có giá trị = rút theo số tiền từng member.
-    withdrawals: z
-      .array(z.object({ memberId: z.string().min(1), amount: z.number().positive() }))
-      .min(1)
-      .optional(),
+    // Bỏ trống = tất toán toàn bộ. Có giá trị = số tiền muốn rút (chia pro-rata).
+    amount: z.number().positive().optional(),
   })
   .optional();
 
@@ -37,9 +34,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       name: session.user.name || session.user.email,
       role: session.user.role,
     },
-    withdrawals: parsed.data?.withdrawals,
+    amount: parsed.data?.amount,
   });
-
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
   return NextResponse.json({ ok: true, transactionId: result.transactionId, total: result.total });
 }
