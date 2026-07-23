@@ -539,7 +539,7 @@ function GoalDetailView({
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [memberId, setMemberId] = useState(currentMemberId);
   const [loading, setLoading] = useState(false);
-  const [settling, setSettling] = useState(false);
+  const [showSettle, setShowSettle] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showEdit, setShowEdit] = useState(false);
   const [editCid, setEditCid] = useState<string | null>(null);
@@ -602,25 +602,6 @@ function GoalDetailView({
       toast.success(`🎉 Hoàn thành mục tiêu "${goal.name}"!`);
     }
     setAmount(""); setNote("");
-    onChanged();
-  }
-
-  async function settleGoal() {
-    if (
-      !confirm(
-        `Tất toán sổ tiết kiệm "${goal.name}"?\n\nToàn bộ ${formatVND(goal.totalContributed)} sẽ được ghi có vào thu nhập trên dashboard và mục tiêu sẽ được khoá lại (không thêm/sửa đóng góp được nữa).`
-      )
-    )
-      return;
-    setSettling(true);
-    const res = await fetch(`/api/savings/${goal.id}/settle`, { method: "POST" });
-    setSettling(false);
-    if (!res.ok) {
-      toast.error((await res.json()).error || "Tất toán thất bại");
-      return;
-    }
-    fireConfetti(2500);
-    toast.success(`💰 Đã tất toán "${goal.name}" — ${formatVND(goal.totalContributed)} ghi có vào thu nhập`);
     onChanged();
   }
 
@@ -782,16 +763,23 @@ function GoalDetailView({
               </span>
             </div>
           )}
-          {canManageGoal && !isSettled && Number(goal.totalContributed) > 0 && (
+          {canManageGoal && !isSettled && Number(goal.totalContributed) > 0 && !showSettle && (
             <button
-              onClick={settleGoal}
-              disabled={settling}
-              className="mt-4 w-full rounded-2xl bg-white/90 border border-white py-3 text-sm font-extrabold text-primary shadow-lg hover:bg-white transition disabled:opacity-60"
+              onClick={() => setShowSettle(true)}
+              className="mt-4 w-full rounded-2xl bg-white/90 border border-white py-3 text-sm font-extrabold text-primary shadow-lg hover:bg-white transition"
             >
-              {settling ? "Đang tất toán..." : "💰 Tất toán sổ tiết kiệm"}
+              💰 Tất toán sổ tiết kiệm
             </button>
           )}
         </div>
+      )}
+
+      {showSettle && !isSettled && (
+        <SettleForm
+          goal={goal}
+          onClose={() => setShowSettle(false)}
+          onSettled={() => { setShowSettle(false); onChanged(); }}
+        />
       )}
 
       {isSettled && (
@@ -885,8 +873,10 @@ function GoalDetailView({
                       <p className="text-xs text-gray-500">{formatDate(c.date)}{c.note ? ` · ${c.note}` : ""}</p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <span className="font-medium text-success">+{formatVND(c.amount)}</span>
-                      {canManageContribution(c) && !isSettled && (
+                      <span className={`font-medium ${Number(c.amount) < 0 ? "text-danger" : "text-success"}`}>
+                        {Number(c.amount) < 0 ? "" : "+"}{formatVND(c.amount)}
+                      </span>
+                      {canManageContribution(c) && !isSettled && Number(c.amount) >= 0 && (
                         <>
                           <button onClick={() => setEditCid(c.id)} className="text-xs text-primary">Sửa</button>
                           <button onClick={() => deleteContribution(c)} className="text-xs text-danger">Xoá</button>
@@ -904,6 +894,113 @@ function GoalDetailView({
   );
 }
 
+
+/**
+ * Form tất toán: nhập số tiền rút của từng thành viên (mặc định = toàn bộ phần đã góp).
+ * Rút toàn bộ → khoá sổ; rút 1 phần → sổ tiếp tục, phần còn lại trừ tương ứng.
+ */
+function SettleForm({ goal, onClose, onSettled }: { goal: GoalDetail; onClose: () => void; onSettled: () => void }) {
+  // Gộp phần còn lại theo member từ lịch sử đóng góp (kể cả dòng âm do đã rút 1 phần).
+  const rows = (() => {
+    const map = new Map<string, { memberId: string; name: string; contributed: number }>();
+    for (const c of goal.contributions) {
+      const cur = map.get(c.memberId) ?? { memberId: c.memberId, name: c.memberName, contributed: 0 };
+      cur.contributed += Number(c.amount);
+      map.set(c.memberId, cur);
+    }
+    return Array.from(map.values()).filter((m) => m.contributed > 0);
+  })();
+  const [amounts, setAmounts] = useState<Record<string, string>>(
+    () => Object.fromEntries(rows.map((m) => [m.memberId, String(Math.round(m.contributed))]))
+  );
+  const [settling, setSettling] = useState(false);
+  const toast = useToast();
+
+  const totalAvail = rows.reduce((s, m) => s + Math.round(m.contributed), 0);
+  const totalSel = rows.reduce((s, m) => s + Number(amounts[m.memberId] || 0), 0);
+  const overRow = rows.find((m) => Number(amounts[m.memberId] || 0) > Math.round(m.contributed));
+  const isFull = totalSel === totalAvail;
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (overRow || totalSel <= 0) return;
+    const msg = isFull
+      ? `Tất toán toàn bộ ${formatVND(totalSel)}?\n\nSổ sẽ được khoá lại (không thêm/sửa đóng góp được nữa).`
+      : `Tất toán 1 phần ${formatVND(totalSel)}?\n\nSổ vẫn tiếp tục hoạt động, phần đã góp của từng người sẽ trừ tương ứng.`;
+    if (!confirm(msg)) return;
+    setSettling(true);
+    const res = await fetch(`/api/savings/${goal.id}/settle`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        withdrawals: rows
+          .filter((m) => Number(amounts[m.memberId] || 0) > 0)
+          .map((m) => ({ memberId: m.memberId, amount: Number(amounts[m.memberId]) })),
+      }),
+    });
+    setSettling(false);
+    if (!res.ok) {
+      toast.error((await res.json()).error || "Tất toán thất bại");
+      return;
+    }
+    if (isFull) fireConfetti(2500);
+    toast.success(`💰 Đã tất toán ${formatVND(totalSel)} — ghi có vào thu nhập`);
+    onSettled();
+  }
+
+  return (
+    <form onSubmit={submit} className="card space-y-3">
+      <div className="flex items-center justify-between">
+        <h2 className="font-semibold">💰 Tất toán sổ tiết kiệm</h2>
+        <button type="button" onClick={onClose} className="text-xs text-gray-500">Đóng</button>
+      </div>
+      <p className="text-xs text-gray-500">
+        Nhập số tiền rút của từng thành viên. Mặc định là rút toàn bộ — sửa lại nếu chỉ muốn tất toán 1 phần.
+      </p>
+      <ul className="space-y-2">
+        {rows.map((m) => {
+          const over = Number(amounts[m.memberId] || 0) > Math.round(m.contributed);
+          return (
+            <li key={m.memberId}>
+              <div className="flex items-center justify-between text-xs mb-1">
+                <span className="font-medium">{m.name}</span>
+                <span className="text-gray-500">Đã góp {formatVND(m.contributed)}</span>
+              </div>
+              <div className="flex gap-2">
+                <MoneyInput
+                  className={`input !py-1.5 flex-1 ${over ? "!border-danger" : ""}`}
+                  value={amounts[m.memberId] || ""}
+                  onValueChange={(v) => setAmounts((a) => ({ ...a, [m.memberId]: v }))}
+                  placeholder="0 ₫"
+                />
+                <button
+                  type="button"
+                  onClick={() => setAmounts((a) => ({ ...a, [m.memberId]: String(Math.round(m.contributed)) }))}
+                  className="text-xs text-primary font-medium shrink-0"
+                >
+                  Tối đa
+                </button>
+              </div>
+              {over && <p className="text-[11px] text-danger mt-1">Vượt quá phần đã góp</p>}
+            </li>
+          );
+        })}
+      </ul>
+      <div className="rounded-xl bg-gray-50 border p-3 text-sm flex items-center justify-between">
+        <span className="text-gray-600">Tổng ghi có</span>
+        <span className="font-bold">{formatVND(totalSel)}</span>
+      </div>
+      <p className="text-xs text-gray-500">
+        {isFull
+          ? "Rút toàn bộ — sổ sẽ được khoá sau khi tất toán."
+          : "Rút 1 phần — sổ vẫn tiếp tục hoạt động với phần còn lại."}
+      </p>
+      <button className="btn-primary w-full" disabled={settling || totalSel <= 0 || !!overRow}>
+        {settling ? "Đang tất toán..." : `Tất toán ${formatVND(totalSel)}`}
+      </button>
+    </form>
+  );
+}
 
 function DonutProgress({ percent, size = 84, stroke = 10, showLabel = true }: { percent: number; size?: number; stroke?: number; showLabel?: boolean }) {
   const p = Math.max(0, Math.min(100, percent));

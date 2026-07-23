@@ -59,6 +59,9 @@ export async function PATCH(
   if (ctx.goal.status === GoalStatus.SETTLED) {
     return NextResponse.json({ error: "Mục tiêu đã tất toán, không thể sửa đóng góp" }, { status: 400 });
   }
+  if (Number(ctx.contribution.amount) < 0) {
+    return NextResponse.json({ error: "Dòng tất toán do hệ thống tạo, không thể sửa" }, { status: 400 });
+  }
   if (!canManageContribution(session, ctx.goal, ctx.contribution.memberId)) {
     return NextResponse.json({ error: "Bạn không có quyền sửa đóng góp này" }, { status: 403 });
   }
@@ -117,6 +120,9 @@ export async function DELETE(
   if ("error" in ctx) return NextResponse.json({ error: ctx.error }, { status: 404 });
   if (ctx.goal.status === GoalStatus.SETTLED) {
     return NextResponse.json({ error: "Mục tiêu đã tất toán, không thể xoá đóng góp" }, { status: 400 });
+  }
+  if (Number(ctx.contribution.amount) < 0) {
+    return NextResponse.json({ error: "Dòng tất toán do hệ thống tạo, không thể xoá" }, { status: 400 });
   }
   if (!canManageContribution(session, ctx.goal, ctx.contribution.memberId)) {
     return NextResponse.json({ error: "Bạn không có quyền xoá đóng góp này" }, { status: 403 });

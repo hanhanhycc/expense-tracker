@@ -2,8 +2,8 @@ import { prisma } from "@/lib/db";
 import { CategoryKind, GoalStatus, Prisma, SplitType, Visibility } from "@prisma/client";
 import { logActivity } from "@/lib/activity-log";
 import { notifyShareRecipients } from "@/lib/notify";
-import { formatVND, toDecimal } from "@/lib/money";
-import { buildSettlementShares } from "./settlement";
+import { formatVND } from "@/lib/money";
+import { buildWithdrawalSettlement, contributedByMember } from "./settlement";
 import { canManageGoal } from "./permissions";
 
 export const SETTLE_CATEGORY_NAME = "Tất toán tiết kiệm";
@@ -44,16 +44,19 @@ export type SettleResult =
   | { ok: false; status: number; error: string };
 
 /**
- * Tất toán mục tiêu tiết kiệm:
- * - Tạo 1 giao dịch THU NHẬP = tổng đã đóng góp (ghi có vào dashboard).
- * - SHARED: chia CUSTOM theo đúng phần góp của từng member (residual model —
- *   người tất toán là payer, giữ phần góp của chính mình).
- * - Khoá mục tiêu: status = SETTLED.
+ * Tất toán mục tiêu tiết kiệm (toàn bộ hoặc 1 phần):
+ * - Tạo 1 giao dịch THU NHẬP = tổng tiền rút (ghi có vào dashboard).
+ * - SHARED: chia CUSTOM theo số tiền rút của từng member (residual model —
+ *   người tất toán là payer, giữ phần rút của chính mình).
+ * - Rút 1 phần: ghi dòng đóng góp ÂM cho từng member, sổ tiếp tục chạy.
+ * - Rút sạch toàn bộ: khoá sổ (status = SETTLED).
  */
 export async function settleSavingGoal(args: {
   familyId: string;
   goalId: string;
   actor: { userId: string; memberId: string; name: string; role: string };
+  /** Số tiền rút theo từng member. Bỏ trống = rút toàn bộ phần còn lại của mọi người. */
+  withdrawals?: { memberId: string; amount: number }[];
 }): Promise<SettleResult> {
   const { familyId, goalId, actor } = args;
 
@@ -72,17 +75,31 @@ export async function settleSavingGoal(args: {
 
   // PERSONAL: chỉ creator được tất toán (đã check ở canManageGoal) → payer = creator.
   const payerId = goal.visibility === Visibility.PERSONAL ? goal.createdById : actor.memberId;
-  const { total, shares } = buildSettlementShares(
-    goal.contributions.map((c) => ({ memberId: c.memberId, amount: c.amount.toString() })),
-    payerId,
-  );
-  if (!toDecimal(total).greaterThan(0)) {
-    return { ok: false, status: 400, error: "Chưa có đóng góp nào để tất toán" };
+  const contributions = goal.contributions.map((c) => ({ memberId: c.memberId, amount: c.amount.toString() }));
+  // Không truyền withdrawals → rút toàn bộ phần còn lại của từng member.
+  const wanted = args.withdrawals ?? contributedByMember(contributions);
+  const built = buildWithdrawalSettlement(contributions, payerId, wanted);
+
+  if (!built.ok) {
+    if (built.error === "EXCEEDS_CONTRIBUTED") {
+      const m = built.memberId
+        ? await prisma.familyMember.findUnique({ where: { id: built.memberId }, select: { user: { select: { name: true } } } })
+        : null;
+      return {
+        ok: false,
+        status: 400,
+        error: `Số tiền rút của ${m?.user.name ?? "thành viên"} vượt quá phần đã góp còn lại`,
+      };
+    }
+    return { ok: false, status: 400, error: "Chưa có số tiền nào để tất toán" };
   }
+  const { total, shares, withdrawalByMember, isFull } = built;
 
   const categoryId = await getOrCreateSettleCategory(familyId);
   const today = new Date(new Date().toISOString().slice(0, 10) + "T00:00:00.000Z");
-  const note = `Tất toán sổ tiết kiệm "${goal.name}"`;
+  const note = isFull
+    ? `Tất toán sổ tiết kiệm "${goal.name}"`
+    : `Tất toán 1 phần sổ tiết kiệm "${goal.name}"`;
 
   let tx: { id: string; date: Date };
   try {
@@ -105,12 +122,25 @@ export async function settleSavingGoal(args: {
         },
         select: { id: true, date: true },
       });
-      // Guard chống double-settle khi 2 request đua nhau: chỉ update khi chưa SETTLED.
-      const updated = await db.savingGoal.updateMany({
-        where: { id: goalId, status: { not: GoalStatus.SETTLED }, deletedAt: null },
-        data: { status: GoalStatus.SETTLED, settledAt: new Date(), settledTxId: created.id },
-      });
-      if (updated.count === 0) throw new Error("ALREADY_SETTLED");
+      if (isFull) {
+        // Guard chống double-settle khi 2 request đua nhau: chỉ update khi chưa SETTLED.
+        const updated = await db.savingGoal.updateMany({
+          where: { id: goalId, status: { not: GoalStatus.SETTLED }, deletedAt: null },
+          data: { status: GoalStatus.SETTLED, settledAt: new Date(), settledTxId: created.id },
+        });
+        if (updated.count === 0) throw new Error("ALREADY_SETTLED");
+      } else {
+        // Rút 1 phần: ghi dòng đóng góp ÂM để trừ phần còn lại của từng member.
+        await db.savingContribution.createMany({
+          data: withdrawalByMember.map((w) => ({
+            savingGoalId: goalId,
+            memberId: w.memberId,
+            amount: new Prisma.Decimal(w.amount).negated(),
+            date: today,
+            note,
+          })),
+        });
+      }
       return created;
     });
   } catch (e) {
@@ -127,7 +157,9 @@ export async function settleSavingGoal(args: {
     action: "SETTLE",
     entity: "saving_goal",
     entityId: goalId,
-    summary: `Tất toán mục tiêu "${goal.name}" — ${formatVND(total)} ghi có vào thu nhập`,
+    summary: isFull
+      ? `Tất toán mục tiêu "${goal.name}" — ${formatVND(total)} ghi có vào thu nhập`
+      : `Tất toán 1 phần mục tiêu "${goal.name}" — ${formatVND(total)} ghi có vào thu nhập`,
     metadata: { transactionId: tx.id },
   });
 
