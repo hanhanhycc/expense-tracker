@@ -4,7 +4,7 @@ export type LogInput = {
   familyId: string;
   actorId?: string | null;
   actorName: string;
-  action: "CREATE" | "UPDATE" | "DELETE" | "INVITE" | "ROLE_CHANGE";
+  action: "CREATE" | "UPDATE" | "DELETE" | "INVITE" | "ROLE_CHANGE" | "SETTLE";
   entity: "saving_goal" | "contribution" | "member" | "invite" | "family" | "profile";
   entityId?: string | null;
   summary: string;

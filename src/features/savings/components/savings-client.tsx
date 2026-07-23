@@ -8,7 +8,7 @@ import { useToast } from "@/components/toast";
 import { MoneyInput } from "@/components/money-input";
 import { fireConfetti } from "@/components/confetti";
 
-type GoalStatus = "ACTIVE" | "COMPLETED" | "ARCHIVED";
+type GoalStatus = "ACTIVE" | "COMPLETED" | "ARCHIVED" | "SETTLED";
 type GoalVisibility = "PERSONAL" | "SHARED";
 type Goal = {
   id: string;
@@ -20,6 +20,8 @@ type Goal = {
   targetAmount: string;
   targetDate: string | null;
   createdAt?: string;
+  settledAt?: string | null;
+  settledTxId?: string | null;
   totalContributed: string;
   progress: number;
   members: { memberId: string; name: string }[];
@@ -30,6 +32,13 @@ type GoalDetail = Omit<Goal, "members"> & {
   members: { memberId: string; name: string; contributed: number }[];
 };
 type Member = { id: string; role: "OWNER" | "ADMIN" | "MEMBER"; user: { id: string; name: string } };
+
+const STATUS_LABEL: Record<GoalStatus, string> = {
+  ACTIVE: "Đang chạy",
+  COMPLETED: "Hoàn thành",
+  ARCHIVED: "Lưu trữ",
+  SETTLED: "💰 Đã tất toán",
+};
 
 /** Số ngày còn lại đến deadline (âm = đã quá hạn). null nếu không có deadline. */
 function daysUntil(dateStr: string | null | undefined): number | null {
@@ -189,7 +198,9 @@ export function SavingsClient({
                       <div className="mt-1 flex flex-wrap gap-1.5 items-center">
                         <DeadlineBadge targetDate={g.targetDate} completed={g.status === "COMPLETED" || g.progress >= 100} />
                         {g.status !== "ACTIVE" && (
-                          <span className="chip bg-gray-100 text-gray-600 text-[10px]">{g.status}</span>
+                          <span className={`chip text-[10px] ${g.status === "SETTLED" ? "bg-success/10 text-success" : "bg-gray-100 text-gray-600"}`}>
+                            {STATUS_LABEL[g.status]}
+                          </span>
                         )}
                       </div>
                     </div>
@@ -528,10 +539,13 @@ function GoalDetailView({
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [memberId, setMemberId] = useState(currentMemberId);
   const [loading, setLoading] = useState(false);
+  const [settling, setSettling] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showEdit, setShowEdit] = useState(false);
   const [editCid, setEditCid] = useState<string | null>(null);
   const toast = useToast();
+
+  const isSettled = goal.status === "SETTLED";
 
   const canManageGoal =
     currentRole === "OWNER" || currentRole === "ADMIN" || currentMemberId === goal.createdById;
@@ -591,6 +605,25 @@ function GoalDetailView({
     onChanged();
   }
 
+  async function settleGoal() {
+    if (
+      !confirm(
+        `Tất toán sổ tiết kiệm "${goal.name}"?\n\nToàn bộ ${formatVND(goal.totalContributed)} sẽ được ghi có vào thu nhập trên dashboard và mục tiêu sẽ được khoá lại (không thêm/sửa đóng góp được nữa).`
+      )
+    )
+      return;
+    setSettling(true);
+    const res = await fetch(`/api/savings/${goal.id}/settle`, { method: "POST" });
+    setSettling(false);
+    if (!res.ok) {
+      toast.error((await res.json()).error || "Tất toán thất bại");
+      return;
+    }
+    fireConfetti(2500);
+    toast.success(`💰 Đã tất toán "${goal.name}" — ${formatVND(goal.totalContributed)} ghi có vào thu nhập`);
+    onChanged();
+  }
+
   async function deleteGoal() {
     if (!confirm(`Xoá mục tiêu "${goal.name}"? Các đóng góp sẽ giữ lại nhưng mục tiêu bị ẩn.`)) return;
     const res = await fetch(`/api/savings/${goal.id}`, { method: "DELETE" });
@@ -639,7 +672,9 @@ function GoalDetailView({
               </span>
               {canManageGoal && (
                 <div className="flex flex-col gap-1">
-                  <button onClick={() => setShowEdit(true)} className="text-xs bg-white/80 rounded-full px-2 py-1">✏️</button>
+                  {!isSettled && (
+                    <button onClick={() => setShowEdit(true)} className="text-xs bg-white/80 rounded-full px-2 py-1">✏️</button>
+                  )}
                   <button onClick={deleteGoal} className="text-xs bg-white/80 rounded-full px-2 py-1 text-danger">🗑</button>
                 </div>
               )}
@@ -742,8 +777,35 @@ function GoalDetailView({
           {goal.description && <p className="text-xs text-gray-700/80 mt-2 text-center">{goal.description}</p>}
           {goal.status !== "ACTIVE" && (
             <div className="mt-2 text-center">
-              <span className="chip bg-white/80 text-gray-700 text-[10px]">{goal.status}</span>
+              <span className={`chip text-[10px] ${isSettled ? "bg-success/15 text-success font-bold" : "bg-white/80 text-gray-700"}`}>
+                {STATUS_LABEL[goal.status]}
+              </span>
             </div>
+          )}
+          {canManageGoal && !isSettled && Number(goal.totalContributed) > 0 && (
+            <button
+              onClick={settleGoal}
+              disabled={settling}
+              className="mt-4 w-full rounded-2xl bg-white/90 border border-white py-3 text-sm font-extrabold text-primary shadow-lg hover:bg-white transition disabled:opacity-60"
+            >
+              {settling ? "Đang tất toán..." : "💰 Tất toán sổ tiết kiệm"}
+            </button>
+          )}
+        </div>
+      )}
+
+      {isSettled && (
+        <div className="card border-success/30 bg-success/5">
+          <p className="text-sm font-bold text-success">
+            💰 Đã tất toán{goal.settledAt ? ` ngày ${formatDate(goal.settledAt)}` : ""}
+          </p>
+          <p className="text-xs text-gray-600 mt-1">
+            {formatVND(goal.totalContributed)} đã được ghi có vào thu nhập trên dashboard.
+          </p>
+          {goal.settledTxId && (
+            <a href={`/history?txId=${goal.settledTxId}`} className="text-xs text-primary font-medium mt-1 inline-block">
+              Xem giao dịch ghi có →
+            </a>
           )}
         </div>
       )}
@@ -762,7 +824,9 @@ function GoalDetailView({
 
       <form onSubmit={submit} className="card space-y-3">
         <h2 className="font-semibold">Thêm đóng góp</h2>
-        {!canContribute ? (
+        {isSettled ? (
+          <p className="text-sm text-gray-500">Mục tiêu đã tất toán — không thể thêm đóng góp.</p>
+        ) : !canContribute ? (
           <p className="text-sm text-gray-500">
             Bạn không nằm trong danh sách thành viên được chia mục tiêu này nên không thể đóng góp.
           </p>
@@ -822,7 +886,7 @@ function GoalDetailView({
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       <span className="font-medium text-success">+{formatVND(c.amount)}</span>
-                      {canManageContribution(c) && (
+                      {canManageContribution(c) && !isSettled && (
                         <>
                           <button onClick={() => setEditCid(c.id)} className="text-xs text-primary">Sửa</button>
                           <button onClick={() => deleteContribution(c)} className="text-xs text-danger">Xoá</button>

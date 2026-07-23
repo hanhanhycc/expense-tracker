@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { Prisma, GoalStatus, Visibility } from "@prisma/client";
 import { sumMoney } from "@/lib/money";
 import { logActivity } from "@/lib/activity-log";
+import { canManageGoal } from "@/features/savings/server/permissions";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -37,6 +38,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     status: g.status,
     visibility: g.visibility,
     createdById: g.createdById,
+    settledAt: g.settledAt ? g.settledAt.toISOString() : null,
+    settledTxId: g.settledTxId,
     targetAmount: g.targetAmount.toString(),
     targetDate: g.targetDate ? g.targetDate.toISOString().slice(0, 10) : null,
     createdAt: g.createdAt.toISOString(),
@@ -70,20 +73,7 @@ const updateSchema = z.object({
   status: z.enum(["ACTIVE", "COMPLETED", "ARCHIVED"]).optional(),
 });
 
-/** OWNER/ADMIN HOẶC người tạo goal — nhưng nếu PERSONAL thì CHỈ người tạo */
-function canManageGoal(
-  session: { user: { role: string; memberId: string } },
-  goal: { createdById: string; visibility: Visibility }
-) {
-  if (goal.visibility === Visibility.PERSONAL) {
-    return session.user.memberId === goal.createdById;
-  }
-  return (
-    session.user.role === "OWNER" ||
-    session.user.role === "ADMIN" ||
-    session.user.memberId === goal.createdById
-  );
-}
+/** OWNER/ADMIN HOẶC người tạo goal — nhưng nếu PERSONAL thì CHỈ người tạo. Xem permissions.ts. */
 
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -97,6 +87,9 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   if (!existing) return NextResponse.json({ error: "Không tìm thấy" }, { status: 404 });
   if (!canManageGoal(session, existing)) {
     return NextResponse.json({ error: "Bạn không có quyền sửa mục tiêu này" }, { status: 403 });
+  }
+  if (existing.status === GoalStatus.SETTLED) {
+    return NextResponse.json({ error: "Mục tiêu đã tất toán, không thể sửa" }, { status: 400 });
   }
 
   const body = await req.json().catch(() => null);
